@@ -386,27 +386,19 @@ suc-inc (b I) =
 
 
 ```agda
---  inverse-bin : ∀ (n : ℕ) → to (from n) ≡ n
---  inverse-bin zero =
---    refl
---  
---  --inverse-bin (suc m) =
---  --  begin
---  --    to (from (suc m))  
---  --  ≡⟨⟩
---  --    to (inc (from m))
---  --  ≡⟨⟩
---  --    to (inc {!!})
---  --  ∎
---  
---  inverse-bin (suc m) =
---    begin
---      to (from (suc m))  
---    ≡⟨⟩
---      to (inc (from m))
---    ≡⟨⟩
---      to (inc {!!})
---    ∎
+inverse-bin : ∀ (n : ℕ) → to (from n) ≡ n
+inverse-bin zero =
+  refl
+inverse-bin (suc m) =
+  begin
+    to (from (suc m))  
+  ≡⟨⟩
+    to (inc (from m))
+  ≡⟨ suc-inc (from m) ⟩
+    suc (to (from m))
+  ≡⟨ cong suc (inverse-bin m) ⟩
+    suc m
+  ∎
 
 --inverse-from-to : ∀ (n : Bin) → from (to n) ≡ n
 --inverse-from-to ⟨⟩ = refl
