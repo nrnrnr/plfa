@@ -341,9 +341,45 @@ to (b O) = to b + to b
 ```
 
 ```agda
---prelemma : ∀ (n m : ℕ) -> suc (n + m) ≡ suc n + m
---prelemma 0 m = refl
---
+_/+/_ : Bin → Bin → Bin
+⟨⟩ /+/ b' = b'
+b /+/ ⟨⟩  = b
+(b O) /+/ (b' O) = (b /+/ b') O
+(b O) /+/ (b' I) = (b /+/ b') I
+(b I) /+/ (b' O) = (b /+/ b') I
+(b I) /+/ (b' I) = (inc (b /+/ b')) O
+
+from-plus : ∀ (m n : ℕ) → from (m + n) ≡ from m /+/ from n
+from-plus 0 n = refl
+from-plus m 0 = 
+  begin
+    from (m + 0)
+  ≡⟨ cong from (tail m) ⟩
+    from m
+  ≡⟨ sym (tail-bin (from m)) ⟩
+    (from m) /+/ ⟨⟩
+  ≡⟨⟩
+    (from m) /+/ from 0
+  ∎
+ where postulate tail : ∀ (n : ℕ) → n + 0 ≡ n
+                 tail-bin : ∀ (b : Bin) → b /+/ ⟨⟩ ≡ b
+
+from-plus (suc m) (suc n) =
+  begin
+    from (suc m + suc n)
+  ∎
+
+```
+
+---
+
+
+
+
+asdfasdf
+
+
+```agda
 suc-+-lemma : ∀ (n m : ℕ) -> suc (n + m) ≡ n + suc m
 suc-+-lemma 0 m = refl
 suc-+-lemma (suc k) m =
@@ -354,9 +390,6 @@ suc-+-lemma (suc k) m =
   ≡⟨ cong suc (suc-+-lemma k m) ⟩
     suc (k + suc m)
   ∎
-
-
-
 ```
 
 ```agda
@@ -399,20 +432,34 @@ inverse-bin (suc m) =
   ≡⟨ cong suc (inverse-bin m) ⟩
     suc m
   ∎
+```
 
---inverse-from-to : ∀ (n : Bin) → from (to n) ≡ n
+asdf hmm, maybe from sum
+
+
+
+```agda
+--inverse-from-to : ∀ (b : Bin) → from (to b) ≡ b
 --inverse-from-to ⟨⟩ = refl
---inverse-from-to (b I) =
+--inverse-from-to (b' O) =
 --  begin
---    from (to (b I))
+--    from (to (b' O))
 --  ≡⟨⟩
---    from (suc (to b + to b))
+--    from (to b' + to b')
+--  ≡⟨⟩
+--    from (suc (to b' + to b'))
+--  ∎
 
 
--- too advanced (not yet been taught quantifiers!)
+--inverse-from-to (b' I) =
+--  begin
+--    from (to (b' I))
+--  ≡⟨⟩
+--    from (suc (to b' + to b'))
+--  ≡⟨⟩
+--    from (suc (to b' + to b'))
+--  ∎
 
--- _ : to (from n) ≡ n
--- _ = { }
 
 
 ```
