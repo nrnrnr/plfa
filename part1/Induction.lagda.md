@@ -1145,7 +1145,7 @@ for all naturals `m`, `n`, and `p`.
     (suc (k + n)) * p
   ≡⟨⟩
     p + (k + n) * p
-  ≡⟨ cong (λ x -> (p + x)) (*-distrib-+ k n p) ⟩
+  ≡⟨ cong (_+_ p) (*-distrib-+ k n p) ⟩
     p + (k * p + n * p)
   ≡⟨ sym (+-assoc p (k * p) (n * p)) ⟩
     (p + k * p) + n * p
@@ -1165,6 +1165,21 @@ Show multiplication is associative, that is,
 for all naturals `m`, `n`, and `p`.
 
 ```agda
+
+*-assoc : ∀ (m n p : ℕ) -> (m * n) * p ≡ m * (n * p)
+*-assoc 0 n p = refl
+*-assoc (suc k) n p = 
+  begin
+    ((suc k) * n) * p
+  ≡⟨⟩
+    (n + (k * n)) * p
+  ≡⟨ *-distrib-+ n (k * n) p ⟩
+    n * p  + (k * n) * p
+  ≡⟨ cong (_+_ (n * p)) (*-assoc k n p)  ⟩
+    n * p  + k * (n * p)
+  ∎  
+
+
 -- Your code goes here
 ```
 
@@ -1221,6 +1236,45 @@ for all `m`, `n`, and `p`.
 
 ```
 -- Your code goes here
+one-mul-id : ∀ (n : ℕ) -> 1 * n ≡ n
+one-mul-id n = 
+  begin
+    1 * n
+  ≡⟨⟩
+    n + (0 * n)
+  ≡⟨⟩
+    n + 0
+  ≡⟨ +-identityʳ n ⟩
+    n
+  ∎  
+
+^-distribl-+-* : ∀ (m n p : ℕ) -> m ^ (n + p) ≡ (m ^ n) * (m ^ p)
+^-distribl-+-* m 0 p = 
+  begin
+    m ^ (0 + p)
+  ≡⟨⟩
+    m ^ p
+  ≡⟨ sym (one-mul-id (m ^ p)) ⟩
+   1 * (m ^ p)
+  ≡⟨⟩
+   (m ^ 0) * (m ^ p)
+  ∎
+^-distribl-+-* m (suc k) p = 
+  begin
+    m ^ (suc k + p)
+  ≡⟨⟩
+    m ^ suc (k + p)
+  ≡⟨⟩
+   m * (m ^ (k + p))
+  ≡⟨ cong (_*_ m) (^-distribl-+-* m k p) ⟩
+   m * ((m ^ k) * (m ^ p))
+  ≡⟨ sym (*-assoc m (m ^ k) (m ^ p)) ⟩
+   (m * (m ^ k)) * (m ^ p)
+  ≡⟨⟩
+   (m ^ (suc k)) * (m ^ p)
+  ∎
+
+
 ```
 
 
