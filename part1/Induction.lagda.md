@@ -247,6 +247,13 @@ Here is the proposition's statement and proof:
 We have named the proof `+-assoc`.  In Agda, identifiers can consist of
 any sequence of characters not including spaces or the characters `@.(){};_`.
 
+```agda
++assoc2 : ∀ (m n p : ℕ) → (m + n) + p ≡ m + (n + p)
++assoc2 zero n p = refl
++assoc2 (suc m) n p = cong suc (+assoc2 m n p)
+```
+
+
 Let's unpack this code.  The signature states that we are
 defining the identifier `+-assoc` which provides evidence for the
 proposition:
@@ -436,40 +443,86 @@ inverse-bin (suc m) =
   ≡⟨ cong suc (inverse-bin m) ⟩
     suc m
   ∎
+
+inverse-bin-rewrite : ∀ (n : ℕ) → to (from n) ≡ n
+inverse-bin-rewrite zero = refl
+inverse-bin-rewrite (suc m) rewrite suc-inc (from m) | (inverse-bin-rewrite m) = refl
+
 ```
 
 asdf hmm, maybe from sum
 
 
 ```agda
+data Nonzero : Bin -> Set where
+  one-nonzero : ∀ {b : Bin} → Nonzero (b I)
+  leading-nonzero : ∀ {b : Bin} → Nonzero b -> Nonzero (b O)
+
+nonzero-inc : ∀ (b : Bin) -> Nonzero (inc b)
+nonzero-inc ⟨⟩ = one-nonzero
+nonzero-inc (b I) = leading-nonzero (nonzero-inc b)
+nonzero-inc (b O) = one-nonzero
+
+nonzero-binary : ∀ (n : ℕ) -> Nonzero (from (suc n))
+nonzero-binary n = nonzero-inc (from n)
+```
+
+now laws of double
+
+```agda
+
 double-to-law : ∀ (b : Bin) -> double (to b) ≡ to (b O)
 double-to-law ⟨⟩ = refl
 double-to-law (b O) = refl
 double-to-law (b I) = refl
 
 -- from-double-law : ∀ (n : ℕ) -> from (double n) ≡ (from n) O
-
 -- counterexample:
 
 _ : from (to (⟨⟩ O)) ≡ ⟨⟩
 _ = refl
+
+from-double-nonzero-law : ∀ (m : ℕ) -> from (double (suc m)) ≡ (from (suc m) O)
+from-double-nonzero-law 0 =  refl
+--  begin
+--    from (double (suc 0))
+--  ≡⟨⟩
+--    from (suc (suc (double 0)))
+--  ≡⟨⟩
+--    inc (from (suc (double 0)))
+--  ≡⟨⟩
+--    inc (inc (from 0))
+--  
+--  ∎
+  
+from-double-nonzero-law (suc k) = 
+  begin
+    from (double (suc (suc k)))
+  ≡⟨⟩
+    from (suc (suc (double (suc k))))
+  ≡⟨⟩
+    inc (from (suc (double (suc k))))
+  ≡⟨⟩
+    inc (inc (from (double (suc k))))
+  ≡⟨ cong (λ x -> inc (inc x)) (from-double-nonzero-law k) ⟩
+    inc (inc (from (suc k) O))
+  ∎
+  
 
 ```
 
 now inverse!
 
 ```agda
----inverse-from-to : ∀ (b : Bin) → from (to b) ≡ b
----inverse-from-to ⟨⟩ = refl
----inverse-from-to (b' O) =
----  begin
----    from (to (b' O))
----  ≡⟨⟩
----    from (double (to b'))
----  ≡⟨⟩
----    from (suc (to b' + to b'))
----  ∎
---  where helper : ∀ (b : Bin) -> double (to b) ≡ to (b O)
+--inverse-from-to : ∀ (b : Bin) → Nonzero b -> from (to b) ≡ b
+----inverse-from-to ⟨⟩ _ = refl
+--inverse-from-to (b' O) pf =
+--  begin
+--    from (to (b' O))
+--  ≡⟨⟩
+--    from (double (to b'))
+--  ∎
+-- where helper : ∀ (b : Bin) -> double (to b) ≡ to (b O)
 --        helper ⟨⟩ = refl
 --        helper
 
@@ -1069,6 +1122,8 @@ is associative and commutative.
 
 ```agda
 -- Your code goes here
++-swap : ∀ (m n p : ℕ) -> m + (n + p) ≡ n + (m + p)
++-swap n m p rewrite sym (+-assoc m n p) | +-comm m n | +-assoc n m p = refl
 ```
 
 
@@ -1081,6 +1136,22 @@ Show multiplication distributes over addition, that is,
 for all naturals `m`, `n`, and `p`.
 
 ```agda
+*-distrib-+ : ∀ (m n p : ℕ) -> (m + n) * p ≡ m * p + n * p
+*-distrib-+ 0 n p = refl
+*-distrib-+ (suc k) n p =
+  begin
+    ((suc k) + n) * p
+  ≡⟨⟩
+    (suc (k + n)) * p
+  ≡⟨⟩
+    p + (k + n) * p
+  ≡⟨ cong (λ x -> (p + x)) (*-distrib-+ k n p) ⟩
+    p + (k * p + n * p)
+  ≡⟨ sym (+-assoc p (k * p) (n * p)) ⟩
+    (p + k * p) + n * p
+  ≡⟨⟩
+    (suc k) * p + n * p
+  ∎
 -- Your code goes here
 ```
 
