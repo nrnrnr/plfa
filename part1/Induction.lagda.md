@@ -334,10 +334,18 @@ from : ℕ → Bin
 from 0 = ⟨⟩
 from (suc n) = inc (from n)
 
+double : ℕ → ℕ
+double 0 = 0
+double (suc n) = suc (suc (double n))
+
+_ : double 3 ≡ 6
+_ = refl
+
+
 to : Bin → ℕ
 to ⟨⟩ = 0
-to (b I) = suc (to b + to b)
-to (b O) = to b + to b
+to (b I) = suc (double (to b))
+to (b O) = double (to b)
 ```
 
 ```agda
@@ -349,25 +357,25 @@ b /+/ ⟨⟩  = b
 (b I) /+/ (b' O) = (b /+/ b') I
 (b I) /+/ (b' I) = (inc (b /+/ b')) O
 
-from-plus : ∀ (m n : ℕ) → from (m + n) ≡ from m /+/ from n
-from-plus 0 n = refl
-from-plus m 0 = 
-  begin
-    from (m + 0)
-  ≡⟨ cong from (tail m) ⟩
-    from m
-  ≡⟨ sym (tail-bin (from m)) ⟩
-    (from m) /+/ ⟨⟩
-  ≡⟨⟩
-    (from m) /+/ from 0
-  ∎
- where postulate tail : ∀ (n : ℕ) → n + 0 ≡ n
-                 tail-bin : ∀ (b : Bin) → b /+/ ⟨⟩ ≡ b
+-- from-plus : ∀ (m n : ℕ) → from (m + n) ≡ from m /+/ from n
+-- from-plus 0 n = refl
+-- from-plus m 0 = 
+--   begin
+--     from (m + 0)
+--   ≡⟨ cong from (tail m) ⟩
+--     from m
+--   ≡⟨ sym (tail-bin (from m)) ⟩
+--     (from m) /+/ ⟨⟩
+--   ≡⟨⟩
+--     (from m) /+/ from 0
+--   ∎
+--  where postulate tail : ∀ (n : ℕ) → n + 0 ≡ n
+--                  tail-bin : ∀ (b : Bin) → b /+/ ⟨⟩ ≡ b
 
-from-plus (suc m) (suc n) =
-  begin
-    from (suc m + suc n)
-  ∎
+--from-plus (suc m) (suc n) =
+--  begin
+--    from (suc m + suc n)
+--  ∎
 
 ```
 
@@ -402,15 +410,11 @@ suc-inc (b I) =
   ≡⟨⟩
     to ((inc b) O)
   ≡⟨⟩
-    to (inc b) + to (inc b)
-  ≡⟨ cong (λ x → x + to (inc b)) (suc-inc b) ⟩ 
-    suc (to b) + to (inc b)
-  ≡⟨ cong (λ x → suc (to b) + x) (suc-inc b) ⟩ 
-    suc (to b) + suc (to b)
+    double (to (inc b))
+  ≡⟨ cong double (suc-inc b)  ⟩ 
+    double (suc (to b))
   ≡⟨⟩
-    suc (to b + suc (to b))
-  ≡⟨ cong suc (sym (suc-+-lemma (to b) (to b))) ⟩
-    suc (suc (to b + to b))
+    suc (suc (double (to b)))
   ≡⟨⟩
     suc (to (b I))
   ∎
@@ -437,18 +441,37 @@ inverse-bin (suc m) =
 asdf hmm, maybe from sum
 
 
+```agda
+double-to-law : ∀ (b : Bin) -> double (to b) ≡ to (b O)
+double-to-law ⟨⟩ = refl
+double-to-law (b O) = refl
+double-to-law (b I) = refl
+
+-- from-double-law : ∀ (n : ℕ) -> from (double n) ≡ (from n) O
+
+-- counterexample:
+
+_ : from (to (⟨⟩ O)) ≡ ⟨⟩
+_ = refl
+
+```
+
+now inverse!
 
 ```agda
---inverse-from-to : ∀ (b : Bin) → from (to b) ≡ b
---inverse-from-to ⟨⟩ = refl
---inverse-from-to (b' O) =
---  begin
---    from (to (b' O))
---  ≡⟨⟩
---    from (to b' + to b')
---  ≡⟨⟩
---    from (suc (to b' + to b'))
---  ∎
+---inverse-from-to : ∀ (b : Bin) → from (to b) ≡ b
+---inverse-from-to ⟨⟩ = refl
+---inverse-from-to (b' O) =
+---  begin
+---    from (to (b' O))
+---  ≡⟨⟩
+---    from (double (to b'))
+---  ≡⟨⟩
+---    from (suc (to b' + to b'))
+---  ∎
+--  where helper : ∀ (b : Bin) -> double (to b) ≡ to (b O)
+--        helper ⟨⟩ = refl
+--        helper
 
 
 --inverse-from-to (b' I) =
