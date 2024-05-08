@@ -4,7 +4,7 @@ permalink : /Relations/
 ---
 
 ```agda
-module plfa.part1.Relations where
+module cs.plfa.part1.Relations where
 ```
 
 After having defined operations such as addition and multiplication,
@@ -15,7 +15,7 @@ the next step is to define relations, such as _less than or equal_.
 ```agda
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; cong)
-open import Data.Nat using (ℕ; zero; suc; _+_)
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_)
 open import Data.Nat.Properties using (+-comm; +-identityʳ)
 ```
 
@@ -272,6 +272,13 @@ n`, and applying `s≤s` to that yields a proof of `suc n ≤ suc n`.
 
 It is a good exercise to prove reflexivity interactively in Emacs,
 using holes and the `C-c C-c`, `C-c C-,`, and `C-c C-r` commands.
+
+```agda
+nr-ref : ∀ {n : ℕ} -> n ≤ n
+nr-ref {zero} = z≤n
+nr-ref {suc n} = s≤s nr-ref
+```
+
 
 
 ## Transitivity
@@ -552,7 +559,59 @@ transitivity proves `m + p ≤ n + q`, as was to be shown.
 Show that multiplication is monotonic with regard to inequality.
 
 ```agda
--- Your code goes here
+*-monoʳ-≤ : ∀ (n p q : ℕ)
+  → p ≤ q
+    -------------
+  → n * p ≤ n * q
+*-monoʳ-≤ zero    p q _  =  z≤n
+*-monoʳ-≤ (suc k) p q p≤q  = +-mono-≤ p q (k * p) (k * q) p≤q e1
+    -- p + k * p ≤ q + k * q
+    where e1 : k * p ≤ k * q
+          e1 = *-monoʳ-≤ k p q p≤q   
+
+*-zero : ∀ (n : ℕ) -> n * zero ≡ zero
+*-zero zero = refl
+*-zero (suc k) rewrite (*-zero k) = refl
+
+*-one :  ∀ (n : ℕ) -> n * 1 ≡ n
+*-one zero = refl
+*-one (suc k) rewrite (*-one k) = refl
+
++assoc2 : ∀ (m n p : ℕ) → (m + n) + p ≡ m + (n + p)
++assoc2 zero n p = refl
++assoc2 (suc m) n p = cong suc (+assoc2 m n p)
+
+
+*-inc : ∀ (m n : ℕ) → m * (suc n) ≡ m + m * n
+*-inc zero    n rewrite (+-identityʳ zero)  = refl
+
+*-inc (suc k) n rewrite (*-inc k n)
+                      | Eq.sym (+assoc2 n k (k * n))
+                      | Eq.sym (+assoc2 k n (k * n))
+                      | +-comm n k
+                      = refl
+
+     
+    
+
+--*-comm : ∀ (m n : ℕ) → m * n ≡ n * m
+--*-comm m zero rewrite *-zero m = refl
+--*-comm m (suc k) rewrite *-inc k = *-comm m k
+*-comm : ∀ (m n : ℕ) → m * n ≡ n * m
+*-comm zero n rewrite *-zero n = refl
+*-comm (suc k) n rewrite *-inc n k | *-comm k n = refl
+   
+
+
+*-monoˡ-≤ : ∀ (m n p : ℕ)
+  → m ≤ n
+    -------------
+  → m * p ≤ n * p
+*-monoˡ-≤ m n zero _ rewrite *-zero m = z≤n
+*-monoˡ-≤ m n (suc k) m≤n rewrite *-inc m k = +-mono-≤ m n (m * k) (n * k) m≤n (*-monoˡ-≤ m n k)
+
+
+
 ```
 
 
