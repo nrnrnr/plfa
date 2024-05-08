@@ -698,7 +698,24 @@ similar to that used for totality.
 [negation](/Negation/).)
 
 ```agda
+data Trichotomy (m n : ℕ) : Set where
+
+  tri-less : m < n -> Trichotomy m n
+  tri-greater : n < m -> Trichotomy m n
+  tri-equal : m ≡ n -> Trichotomy m n
 -- Your code goes here
+
+trichotomy : ∀ (m n : ℕ) -> Trichotomy m n
+trichotomy zero zero = tri-equal refl
+trichotomy zero (suc n) = tri-less z<s
+trichotomy (suc m) zero = tri-greater z<s
+trichotomy (suc m) (suc n)
+  with trichotomy m n
+...     | tri-less m<n = tri-less (s<s m<n)
+...     | tri-equal m≡n = tri-equal (cong suc m≡n)
+...     | tri-greater m>n = tri-greater (s<s m>n)
+
+
 ```
 
 #### Exercise `+-mono-<` (practice) {#plus-mono-less}
