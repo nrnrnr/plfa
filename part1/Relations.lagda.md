@@ -608,7 +608,26 @@ Show that multiplication is monotonic with regard to inequality.
     -------------
   → m * p ≤ n * p
 *-monoˡ-≤ m n zero _ rewrite *-zero m = z≤n
-*-monoˡ-≤ m n (suc k) m≤n rewrite *-inc m k = +-mono-≤ m n (m * k) (n * k) m≤n (*-monoˡ-≤ m n k)
+*-monoˡ-≤ m n (suc k) m≤n rewrite *-inc m k 
+                               | *-inc n k
+                               = +-mono-≤ m n (m * k) (n * k) m≤n e
+     where e : m * k ≤ n * k
+           e = *-monoˡ-≤ m n k m≤n
+
+
+*-mono-≤ :  ∀ (m n p q : ℕ)
+  → m ≤ n
+  → p ≤ q 
+    -------------
+  → m * p ≤ n * q
+*-mono-≤ m n p q m≤n p≤q = ≤-trans e e'
+   where e : m * p ≤ n * p
+         e' : n * p ≤ n * q
+         e = *-monoˡ-≤ m n p m≤n
+         e' = *-monoʳ-≤ n p q p≤q
+
+
+-- +-mono-≤ m n (m * k) (n * k) m≤n (*-monoˡ-≤ m n k)
 
 
 
