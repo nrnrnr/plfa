@@ -17,6 +17,8 @@ import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; cong)
 open import Data.Nat using (ℕ; zero; suc; _+_; _*_)
 open import Data.Nat.Properties using (+-comm; +-identityʳ)
+open import cs.plfa.part1.Induction using (+-suc)
+open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; step-≡; _∎)
 ```
 
 
@@ -857,7 +859,12 @@ successor of the sum of two even numbers, which is even.
 Show that the sum of two odd numbers is even.
 
 ```agda
--- Your code goes here
+lemma1 : ∀ (m n : ℕ) -> suc (m + suc n) ≡ Data.Nat.suc (suc (m + n))
+lemma1 m n = cong suc (+-suc m n)           -- +-suc from the Induction chapter
+
+o+o≡e : ∀ {m n : ℕ} -> odd m -> odd n -> even (m + n)
+o+o≡e {suc m} {suc n} (suc em) (suc en) rewrite lemma1 m n = 
+   suc (suc (e+e≡e em en))
 ```
 
 #### Exercise `Bin-predicates` (stretch) {#Bin-predicates}
