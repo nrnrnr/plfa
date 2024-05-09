@@ -732,7 +732,15 @@ As with inequality, some additional definitions may be required.
 Show that `suc m ≤ n` implies `m < n`, and conversely.
 
 ```agda
--- Your code goes here
+≤→< : ∀ (m n : ℕ) -> suc m ≤ n -> m < n
+≤→< zero (suc k) (s≤s z≤n) = z<s
+≤→< (suc m) (suc n) (s≤s m≤n) = s<s e
+  where e : m < n
+        e = ≤→<  m n m≤n
+
+<→≤ : ∀ (m n : ℕ) -> m < n -> suc m ≤ n 
+<→≤ zero (suc n) m<n = s≤s z≤n
+<→≤ (suc m) (suc n) (s<s m<n) = s≤s (<→≤ m n m<n)
 ```
 
 #### Exercise `<-trans-revisited` (practice) {#less-trans-revisited}
