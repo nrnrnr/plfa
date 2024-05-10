@@ -865,6 +865,11 @@ lemma1 m n = cong suc (+-suc m n)           -- +-suc from the Induction chapter
 o+o≡e : ∀ {m n : ℕ} -> odd m -> odd n -> even (m + n)
 o+o≡e {suc m} {suc n} (suc em) (suc en) rewrite lemma1 m n = 
    suc (suc (e+e≡e em en))
+
+-- Better solutions from Phil:
+--   1. Use `rewrite +-suc m n` (better)
+--   2. Use mutual recurion with `e+o≡o` (best)
+
 ```
 
 #### Exercise `Bin-predicates` (stretch) {#Bin-predicates}
