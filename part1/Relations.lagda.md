@@ -19,6 +19,8 @@ open import Data.Nat using (ℕ; zero; suc; _+_; _*_)
 open import Data.Nat.Properties using (+-comm; +-identityʳ)
 open import cs.plfa.part1.Induction using (+-suc)
 open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; step-≡; _∎)
+--open import cs.plfa.part1.Naturals using (Bin; inc; ⟨⟩; _I; _O)
+--import cs.plfa.part1.Naturals as N
 ```
 
 
