@@ -878,6 +878,19 @@ Hence, eleven may be represented by both of the following:
     ⟨⟩ I O I I
     ⟨⟩ O O I O I I
 
+```agda
+data Bin : Set where
+  ⟨⟩ : Bin
+  _O : Bin → Bin
+  _I : Bin → Bin
+
+inc : Bin → Bin
+inc ⟨⟩ = ⟨⟩ I
+inc (b O) = b I
+inc (b I) = (inc b) O
+
+```
+
 Define a predicate
 
     Can : Bin → Set
@@ -924,6 +937,68 @@ properties of `One`. It may also help to prove the following:
     to (2 * n) ≡ (to n) O
 
 ```agda
+
+data One : Bin -> Set where
+  one  : One (⟨⟩ I)
+  oneO : forall {b : Bin} -> One b -> One (b O)
+  oneI : forall {b : Bin} -> One b -> One (b I)
+
+data Can : Bin -> Set where
+  canzero : Can ⟨⟩
+  canone  : forall {b : Bin} -> One b -> Can b
+
+preserve-one : forall {b : Bin} -> One b -> One (inc b)
+preserve-one one = oneO one
+preserve-one (oneO ob) = oneI ob
+preserve-one (oneI ob) = oneO (preserve-one ob)
+
+preserve : forall {b : Bin} -> Can b -> Can (inc b)
+preserve canzero = canone one
+preserve (canone x) = canone (preserve-one x)
+
+to : ℕ → Bin
+to 0 = ⟨⟩
+to (suc n) = inc (to n)
+
+
+double : ℕ → ℕ
+double 0 = 0
+double (suc n) = suc (suc (double n))
+
+
+from : Bin → ℕ
+from ⟨⟩ = 0
+from (b I) = suc (double (from b))
+from (b O) = double (from b)
+
+double-increase : forall {n : ℕ} -> 1 ≤ n -> 1 ≤ (double n)
+double-increase (s≤s pf) = s≤s z≤n
+
+from-one : forall {b : Bin} -> One b -> 1 ≤ from b
+from-one one = s≤s z≤n
+from-one (oneO pf) = double-increase (from-one pf)
+from-one (oneI pf) = s≤s (≤-trans z≤n (double-increase (from-one pf)))
+
+to-double-law : forall {n : ℕ} -> 1 ≤ n -> to (double n) ≡ to n O
+to-double-law {suc k} (s≤s pf) = to-double-law-suc k
+  where to-double-law-suc : forall (n : ℕ) -> to (double (suc n)) ≡ to (suc n) O
+        to-double-law-suc zero = refl
+        to-double-law-suc (suc zero) = refl
+        to-double-law-suc (suc (suc n)) rewrite to-double-law-suc (suc n) = refl
+
+inverse-one : forall {b : Bin} -> One b -> to (from b) ≡ b
+inverse-one one = refl
+inverse-one (oneO pf) rewrite to-double-law (from-one pf) = cong _O (inverse-one pf)
+inverse-one (oneI pf) rewrite to-double-law (from-one pf) = cong _I (inverse-one pf)
+
+inverse-can : forall {b : Bin} -> Can b -> to (from b) ≡ b
+inverse-can canzero = refl
+inverse-can (canone pf) = inverse-one pf
+
+
+
+
+
 -- Your code goes here
 ```
 
