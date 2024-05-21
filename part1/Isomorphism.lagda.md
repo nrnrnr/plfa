@@ -4,7 +4,7 @@ permalink : /Isomorphism/
 ---
 
 ```agda
-module plfa.part1.Isomorphism where
+module cs.plfa.part1.Isomorphism where
 ```
 
 This section introduces isomorphism as a way of asserting that two
@@ -509,7 +509,30 @@ which satisfy the following property:
 
 Using the above, establish that there is an embedding of `ℕ` into `Bin`.
 ```agda
--- Your code goes here
+
+from-to-law : ∀ (n : ℕ) → fromBin (toBin n) ≡ n
+from-to-law zero =
+  refl
+from-to-law (suc m) =
+  begin
+    fromBin (toBin (suc m))  
+  ≡⟨⟩
+    fromBin (inc (toBin m))
+  ≡⟨ suc-inc (toBin m) ⟩
+    suc (fromBin (toBin m))
+  ≡⟨ cong suc (from-to-law m) ⟩
+    suc m
+  ∎
+
+
+embedNat : ℕ ≲ Bin
+embedNat =
+  record { to = toBin
+         ; from = fromBin
+         ; from∘to = from-to-law
+         }
+
+
 ```
 
 Why do `to` and `from` not form an isomorphism?
