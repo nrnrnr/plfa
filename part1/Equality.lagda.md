@@ -4,13 +4,36 @@ permalink : /Equality/
 ---
 
 ```agda
-module plfa.part1.Equality where
+module cs.plfa.part1.Equality where
 ```
 
 Much of our reasoning has involved equality.  Given two terms `M`
 and `N`, both of type `A`, we write `M ≡ N` to assert that `M` and `N`
 are interchangeable.  So far we have treated equality as a primitive,
 here we show how to define it as an inductive datatype.
+
+
+```agda
+data _<>_ {A : Set} (x : A) : A -> Set where
+  refl<> : x <> x
+
+trans-<> : forall {A : Set} -> forall {x y z : A} -> x <> y -> y <> z -> x <> z
+trans-<> refl<> refl<> = refl<>
+
+symmetric-<> : forall {A : Set} -> forall {x y : A} -> x <> y -> y <> x
+symmetric-<> refl<> = refl<>
+
+reflexive-<> : forall {A : Set} -> forall {x : A} -> x <> x
+reflexive-<> = refl<>
+
+_step-<>_ : forall {A : Set} -> forall (x y : A) -> x <> y -> x <> y
+x step-<> y = λ pf -> pf
+
+_step2-_-<>_ : forall {A : Set} -> forall { u v : A } -> 
+               forall (t : A) -> t <> u -> u <> v -> t <> v
+term step2- pf -<> tail = trans-<> pf tail
+
+```
 
 
 ## Imports
