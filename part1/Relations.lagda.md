@@ -959,15 +959,16 @@ from ⟨⟩ = 0
 from (b I) = suc (double (from b))
 from (b O) = double (from b)
 
-double-increase : forall {n : ℕ} -> 1 ≤ n -> 1 ≤ (double n)
-double-increase (s≤s pf) = s≤s z≤n
+-- Key trick: introducing `1 ≤ n` as an intermediate judgment
+
+double-positive-lemma : forall {n : ℕ} -> 1 ≤ n -> 1 ≤ (double n)
+double-positive-lemma (s≤s pf) = s≤s z≤n
 
 to-double-law : forall {n : ℕ} -> 1 ≤ n -> to (double n) ≡ to n O
 to-double-law {suc k} (s≤s pf) = to-double-law-suc k
   where to-double-law-suc : forall (n : ℕ) -> to (double (suc n)) ≡ to (suc n) O
         to-double-law-suc zero = refl
-        to-double-law-suc (suc zero) = refl
-        to-double-law-suc (suc (suc n)) rewrite to-double-law-suc (suc n) = refl
+        to-double-law-suc (suc k) rewrite to-double-law-suc k = refl
 
 data One : Bin -> Set where
   one  : One (⟨⟩ I)
@@ -978,19 +979,21 @@ data Can : Bin -> Set where
   canzero : Can ⟨⟩
   canone  : forall {b : Bin} -> One b -> Can b
 
-from-one : forall {b : Bin} -> One b -> 1 ≤ from b
-from-one one = s≤s z≤n
-from-one (oneO pf) = double-increase (from-one pf)
-from-one (oneI pf) = s≤s (≤-trans z≤n (double-increase (from-one pf)))
+from-one-pos : forall {b : Bin} -> One b -> 1 ≤ from b
+from-one-pos one = s≤s z≤n
+from-one-pos (oneO pf) = double-positive-lemma (from-one-pos pf)
+from-one-pos (oneI pf) = s≤s (≤-trans z≤n (double-positive-lemma (from-one-pos pf)))
 
 to-from-one-law : forall {b : Bin} -> One b -> to (from b) ≡ b
 to-from-one-law one = refl
-to-from-one-law (oneO pf) rewrite to-double-law (from-one pf) = cong _O (to-from-one-law pf)
-to-from-one-law (oneI pf) rewrite to-double-law (from-one pf) = cong _I (to-from-one-law pf)
+to-from-one-law (oneO pf) rewrite to-double-law (from-one-pos pf) = cong _O (to-from-one-law pf)
+to-from-one-law (oneI pf) rewrite to-double-law (from-one-pos pf) = cong _I (to-from-one-law pf)
 
 to-from-can-law : forall {b : Bin} -> Can b -> to (from b) ≡ b
 to-from-can-law canzero = refl
 to-from-can-law (canone pf) = to-from-one-law pf
+
+```
 
 Let's define and prove addition.
 
