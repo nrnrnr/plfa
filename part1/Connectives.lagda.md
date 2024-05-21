@@ -4,7 +4,7 @@ permalink : /Connectives/
 ---
 
 ```agda
-module plfa.part1.Connectives where
+module cs.plfa.part1.Connectives where
 ```
 
 <!-- The ⊥ ⊎ A ≅ A exercise requires a (inj₁ ()) pattern,
@@ -452,6 +452,17 @@ Show sum is commutative up to isomorphism.
 
 ```agda
 -- Your code goes here
+⊎-comm : forall {A B : Set} -> A ⊎ B ≃ B ⊎ A
+⊎-comm = record { to = case-⊎ inj₂ inj₁
+                ; from = case-⊎ inj₂ inj₁
+                ; from∘to = λ{ (inj₁ x) -> refl
+                             ; (inj₂ x) -> refl
+                             } 
+                ; to∘from = λ{ (inj₁ x) -> refl
+                             ; (inj₂ x) -> refl
+                             } 
+                }
+
 ```
 
 #### Exercise `⊎-assoc` (practice)
@@ -522,7 +533,14 @@ is the identity of sums _up to isomorphism_.
 Show empty is the left identity of sums up to isomorphism.
 
 ```agda
--- Your code goes here
+⊎-lid : forall {A : Set} -> ⊥ ⊎ A ≃ A
+⊎-lid = record { to = case-⊎ (λ ()) (λ x -> x)
+               ; from = inj₂
+               ; from∘to = λ{ (inj₁ x) -> ⊥-elim x
+                            ; (inj₂ x) -> refl
+                            } 
+               ; to∘from = λ y → refl
+               }
 ```
 
 #### Exercise `⊥-identityʳ` (practice)
@@ -762,20 +780,92 @@ distributive law, and explain how it relates to the weak version.
 
 ```agda
 -- Your code goes here
-```
+⊎-weak-×' : ∀ {A B C : Set} → (A ⊎ B) × C → A ⊎ (B × C)
+⊎-weak-×' ⟨ inj₁ a , c ⟩ = inj₁ a
+⊎-weak-×' ⟨ inj₂ b , c ⟩ = inj₂ (⟨ b , c ⟩)
 
+⊎-dist-× : ∀ {A B C : Set} → (A ⊎ B) × C → (A × C) ⊎ (B × C)
+⊎-dist-× ⟨ inj₁ a , c ⟩ = inj₁ ⟨ a , c ⟩
+⊎-dist-× ⟨ inj₂ b , c ⟩ = inj₂ ⟨ b , c ⟩
+
+-- Explanation:
+--
+-- The function ⊎-weak-× corresponds to half of an embedding, but I
+-- can't figure out how to express the other half of the embedding in
+-- Agda, because the function that maps A ⊎ (B × C) to (A ⊎ B) × C is
+-- partial.  That's because when an A is present, ⊎-weak-× throws away
+-- the only C.
+-- 
+-- The function ⊎-dist-× corresponds to half an isomorphism.
+
+--------- isomorphism
+
+⊎-dist-×-iso : ∀ {A B C : Set} → (A ⊎ B) × C ≃ (A × C) ⊎ (B × C)
+⊎-dist-×-iso =
+  record { to = ⊎-dist-×
+         ; from = λ{ (inj₁ ⟨ a , c ⟩) -> ⟨ (inj₁ a) , c ⟩
+                   ; (inj₂ ⟨ b , c ⟩) -> ⟨ (inj₂ b) , c ⟩ 
+                   }
+         ; to∘from = λ{ (inj₁ ⟨ a , c ⟩) → refl ; (inj₂ ⟨ b , c ⟩) → refl}
+         ; from∘to = λ{ ⟨ inj₁ a , c ⟩ → refl ; ⟨ inj₂ b , c ⟩ → refl}
+         }
+
+
+
+data _sub-⊥ (A : Set) : Set where
+  defined : A -> A sub-⊥
+  undefined : A sub-⊥
+
+infix 4 _⊑_
+data _⊑_ {A : Set} : A sub-⊥ -> A -> Set where
+  ⊑-defined :  forall { x : A } -> (defined x) ⊑ x
+  ⊑-undefined : forall { x : A } -> undefined ⊑ x
+
+infix 0 _≲'_
+record _≲'_ (A B : Set) : Set where
+  field
+    to      : A → B
+    from    : B → A sub-⊥
+    from∘to : ∀ (x : A) → from (to x) ⊑ x
+open _≲'_
+
+
+
+from-dist : ∀ {A B C : Set} → A ⊎ (B × C) -> ((A ⊎ B) × C) sub-⊥
+from-dist (inj₁ a) = undefined 
+from-dist (inj₂ ⟨ b , c ⟩) = defined ⟨ (inj₂ b) , c ⟩ 
+
+⊎-dist-×-embed' : ∀ {A B C : Set} → (A ⊎ B) × C ≲' A ⊎ (B × C)
+⊎-dist-×-embed' =
+  record { to = ⊎-weak-×'
+         ; from = from-dist
+         ; from∘to = λ{ ⟨ inj₁ a , c ⟩ → ⊑-undefined ; ⟨ inj₂ b , c ⟩ → ⊑-defined }
+         }
+
+
+fmap : forall { A B : Set } -> (A -> B) -> (A sub-⊥ -> B sub-⊥)
+fmap f (defined x) = defined (f x)
+fmap f undefined = undefined
+
+
+```
 
 #### Exercise `⊎×-implies-×⊎` (practice)
 
 Show that a disjunct of conjuncts implies a conjunct of disjuncts:
 ```agda
-postulate
-  ⊎×-implies-×⊎ : ∀ {A B C D : Set} → (A × B) ⊎ (C × D) → (A ⊎ C) × (B ⊎ D)
+--postulate
+--  ⊎×-implies-×⊎ : ∀ {A B C D : Set} → (A × B) ⊎ (C × D) → (A ⊎ C) × (B ⊎ D)
 ```
 Does the converse hold? If so, prove; if not, give a counterexample.
 
 ```agda
--- Your code goes here
+⊎×-implies-×⊎ : ∀ {A B C D : Set} → (A × B) ⊎ (C × D) → (A ⊎ C) × (B ⊎ D)
+⊎×-implies-×⊎ {A} {B} {C} {D} = case-⊎ left right
+  where left  : A × B -> (A ⊎ C) × (B ⊎ D)
+        right : C × D -> (A ⊎ C) × (B ⊎ D)
+        left ⟨ a , b ⟩ = ⟨ inj₁ a , inj₁ b ⟩
+        right ⟨ c , d ⟩ = ⟨ inj₂ c , inj₂ d ⟩
 ```
 
 
