@@ -992,12 +992,116 @@ to-from-can-law : forall {b : Bin} -> Can b -> to (from b) ≡ b
 to-from-can-law canzero = refl
 to-from-can-law (canone pf) = to-from-one-law pf
 
+Let's define and prove addition.
+
+```agda
+---fromBin : Bin → ℕ
+---toBin : ℕ -> Bin
+---
+---fromBin = from
+---toBin = to
+
+--suc-inc : ∀ (b : Bin) → from (inc b) ≡ suc (from b)
+--suc-inc ⟨⟩ = refl
+--suc-inc (b O) = refl
+--suc-inc (b I) = 
+--  begin
+--    from (inc (b I))
+--  ≡⟨⟩
+--    from ((inc b) O)
+--  ≡⟨⟩
+--    double (from (inc b))
+--  ≡⟨ cong double (suc-inc b)  ⟩ 
+--    double (suc (from b))
+--  ≡⟨⟩
+--    suc (suc (double (from b)))
+--  ≡⟨⟩
+--    suc (from (b I))
+--  ∎
+
+from-to-law : ∀ (n : ℕ) → fromBin (toBin n) ≡ n
+from-to-law zero =
+  refl
+from-to-law (suc m) =
+  begin
+    fromBin (toBin (suc m))  
+  ≡⟨⟩
+    fromBin (inc (toBin m))
+  ≡⟨ suc-inc (toBin m) ⟩
+    suc (fromBin (toBin m))
+  ≡⟨ cong suc (from-to-law m) ⟩
+    suc m
+  ∎
 
 
 
 
--- Your code goes here
+
+
+infixl 5 _+₂_
+
+_+₂_ : Bin -> Bin -> Bin
+⟨⟩ +₂ y = y
+x +₂ ⟨⟩ = x
+(x O) +₂ (y O) = (x +₂ y) O
+(x O) +₂ (y I) = (x +₂ y) I
+(x I) +₂ (y O) = (x +₂ y) I
+(x I) +₂ (y I) = (inc (x +₂ y)) O
+
+
+
+inc-to-law : ∀ (n : ℕ) -> inc (toBin n) ≡ toBin (suc n)
+inc-to-law n = Eq.sym refl
+  
+inc-+-law : forall (x y : Bin) -> inc x +₂ y ≡ inc (x +₂ y)
+inc-+-law ⟨⟩ ⟨⟩ = refl
+inc-+-law ⟨⟩ (y O) = refl
+inc-+-law ⟨⟩ (y I) = refl
+inc-+-law (x O) ⟨⟩ = refl
+inc-+-law (x O) (y O) = refl
+inc-+-law (x O) (y I) = refl
+inc-+-law (x I) ⟨⟩ = refl
+inc-+-law (x I) (y O) = cong _O (inc-+-law x y)
+inc-+-law (x I) (y I) = cong _I (inc-+-law x y)
+
+
+adder : ∀ (m n : ℕ) -> fromBin (toBin m +₂ toBin n) ≡ m + n
+adder zero n = from-to-law n
+adder (suc m) n = 
+  begin
+    fromBin (toBin (suc m) +₂ toBin n)
+  ≡⟨⟩
+    fromBin (inc (toBin m) +₂ toBin n)
+  ≡⟨ cong fromBin (inc-+-law (toBin m) (toBin n)) ⟩
+    fromBin (inc (toBin m +₂ toBin n))
+  ≡⟨ suc-inc (toBin m +₂ toBin n) ⟩
+    suc (fromBin (toBin m +₂ toBin n))
+  ≡⟨ cong suc (adder m n) ⟩
+    suc (m + n)
+  ≡⟨⟩
+    (suc m) + n
+  ∎
+
+
+
+
+
+_ : fromBin (toBin 7 +₂ toBin 5) ≡ 12
+_ = refl
+
+_ : fromBin (toBin 4 +₂ toBin 2) ≡ 6
+_ = refl
+
+_ : fromBin (toBin 4 +₂ toBin 4) ≡ 8
+_ = refl
+
+_ : fromBin (toBin 5 +₂ toBin 5) ≡ 10
+_ = refl
+
+
+
 ```
+
 
 ## Standard library
 
