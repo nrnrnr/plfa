@@ -140,6 +140,35 @@ Here the type of `f` and `g` has changed from `A → B` to
 `∀ (x : A) → B x`, generalising ordinary functions to
 dependent functions.
 
+## Commutative diagram for addition
+
+```agda
+open import cs.plfa.part1.Induction using (Bin; ⟨⟩; _O; _I; inc; suc-inc) renaming (to to fromBin; from to toBin)
+open import cs.plfa.part1.Relations using (adder; _+₂_; inc-+-law)
+
+
+
+commutative : (λ (m n : ℕ) -> toBin (m + n)) ≡
+              (λ (m n : ℕ) -> (toBin m) +₂ (toBin n))
+commutative = extensionality (λ m -> extensionality (helper₁ m))
+  where helper₁ : ∀ (m n : ℕ) -> toBin (m + n) ≡ (toBin m) +₂ (toBin n)
+        helper₁ zero n = refl
+        helper₁ (suc m) n = 
+          begin
+            toBin (suc m + n)
+          ≡⟨⟩
+            toBin (suc (m + n))
+          ≡⟨⟩
+            inc (toBin (m + n))
+          ≡⟨ cong inc (helper₁ m n) ⟩
+            inc ((toBin m) +₂ (toBin n))
+          ≡⟨ Eq.sym (inc-+-law (toBin m) (toBin n)) ⟩
+            (inc (toBin m)) +₂ (toBin n)
+          ≡⟨⟩
+            (toBin (suc m)) +₂ (toBin n)
+          ∎
+```
+
 
 ## Isomorphism
 
