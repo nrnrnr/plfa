@@ -886,15 +886,17 @@ Hence, eleven may be represented by both of the following:
     ⟨⟩ O O I O I I
 
 ```agda
-data Bin : Set where
-  ⟨⟩ : Bin
-  _O : Bin → Bin
-  _I : Bin → Bin
+open import cs.plfa.part1.Induction using (Bin; ⟨⟩; _O; _I; inc; suc-inc) renaming (to to fromBin; from to toBin)
 
-inc : Bin → Bin
-inc ⟨⟩ = ⟨⟩ I
-inc (b O) = b I
-inc (b I) = (inc b) O
+--data Bin : Set where
+--  ⟨⟩ : Bin
+--  _O : Bin → Bin
+--  _I : Bin → Bin
+--
+--inc : Bin → Bin
+--inc ⟨⟩ = ⟨⟩ I
+--inc (b O) = b I
+--inc (b I) = (inc b) O
 
 ```
 
