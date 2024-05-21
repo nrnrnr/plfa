@@ -321,6 +321,8 @@ of `_≡⟨_⟩_`)
 
 ```agda
 -- Your code goes here
+-- The functions from ≡-Reasoning use `trans`, so they can't be used to *define* `trans`.
+
 ```
 
 ## Chains of equations, another example
@@ -409,6 +411,84 @@ regard to inequality.  Rewrite all of `+-monoˡ-≤`, `+-monoʳ-≤`, and `+-mon
 
 ```agda
 -- Your code goes here
+data _≤_ : ℕ → ℕ → Set where
+
+  z≤n : ∀ {n : ℕ}
+      --------
+    → zero ≤ n
+
+  s≤s : ∀ {m n : ℕ}
+    → m ≤ n
+      -------------
+    → suc m ≤ suc n
+
+infix 4 _≤_
+
+≤-refl : ∀ {x : ℕ} -> x ≤ x
+≤-refl {zero} = z≤n
+≤-refl {suc n} = s≤s ≤-refl
+
+≤-trans : ∀ {x y z : ℕ} -> x ≤ y -> y ≤ z -> x ≤ z
+≤-trans z≤n y≤z = z≤n
+≤-trans (s≤s x≤y) (s≤s y≤z) = s≤s (≤-trans x≤y y≤z)
+
+
+module ≤-Reasoning where
+
+  cs : forall { x y : ℕ } -> suc x ≡ suc y -> x ≡ y
+  cs {x} {y} refl = refl
+
+  infix  1 begin≤_
+  infixr 2 _≡⟨⟩'_ step-≡' step-≤
+  infix  3 _∎'
+
+  begin≤_ : ∀ {x y : ℕ}
+    → x ≤ y
+      -----
+    → x ≤ y
+  begin≤ x≤y  =  x≤y
+
+  _≡⟨⟩'_ : ∀ (x : ℕ) {y : ℕ}
+    → x ≤ y
+      -----
+    → x ≤ y
+  x ≡⟨⟩' x≤y  =  x≤y
+
+  step-≡' : ∀ (x {y z} : ℕ) → y ≤ z → x ≡ y → x ≤ z
+  step-≡' zero z≤n x≡y = z≤n
+  step-≡' (suc k) {suc m} {suc n} (s≤s y≤z) x≡y = s≤s (step-≡' k y≤z (cs x≡y))
+
+  step-≤ : ∀ (x {y z} : ℕ) → y ≤ z → x ≤ y → x ≤ z
+  step-≤ x y≤z x≤y  = ≤-trans x≤y y≤z
+
+  syntax step-≡' x y≡z x≡y  =  x ≡⟨'  x≡y ⟩ y≡z
+  syntax step-≤ x y≡z x≡y  =  x ≤⟨  x≡y ⟩ y≡z
+
+  _∎' : ∀ (x : ℕ)
+      -----
+    → x ≤ x
+  x ∎'  = ≤-refl
+
+open ≤-Reasoning
+
++-monoʳ-≤ : ∀ (n p q : ℕ)
+  → p ≤ q
+    -------------
+  → n + p ≤ n + q
++-monoʳ-≤ zero p q p≤q = p≤q
++-monoʳ-≤ (suc n) p q p≤q = 
+   begin≤
+     suc n + p
+   ≡⟨⟩'
+     suc (n + p)
+   ≤⟨ s≤s (+-monoʳ-≤ n p q p≤q) ⟩
+     suc (n + q)
+   ≡⟨⟩'
+     (suc n) + q
+   ∎'
+
+
+
 ```
 
 
@@ -454,7 +534,8 @@ even-comm : ∀ (m n : ℕ)
   → even (m + n)
     ------------
   → even (n + m)
-even-comm m n ev  rewrite +-comm n m  =  ev
+--even-comm m n ev  rewrite +-comm n m  =  ev
+even-comm m n pf rewrite +-comm n m = pf
 ```
 Here `ev` ranges over evidence that `even (m + n)` holds, and we show
 that it also provides evidence that `even (n + m)` holds.  In
