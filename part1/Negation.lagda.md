@@ -246,8 +246,8 @@ equiv-pair refl refl = refl
 equiv-bot : ∀ {x : ⊥} -> ∀ (y : ⊥) -> x ≡ y
 equiv-bot ()
 
-equiv-return-bot : ∀ { A : Set} -> ∀ {f : A -> ⊥} -> ∀ (g : A -> ⊥) -> f ≡ g
-equiv-return-bot g = extensionality (λ x -> equiv-bot (g x))
+equiv-¬ : ∀ { A : Set} -> ∀ {f : ¬ A} -> ∀ (g : ¬ A ) -> f ≡ g
+equiv-¬ g = extensionality (λ x -> equiv-bot (g x))
 
 dual-from : forall {A B : Set} -> (¬ A) × (¬ B) -> ¬ (A ⊎ B)
 dual-from = λ{ ( ¬A , ¬B ) → case-⊎ ¬A ¬B }
@@ -263,7 +263,7 @@ inverse-from-circle-to x = extensionality (λ pf -> equiv-bot (x pf))
   record { to = dual-to
          ; from = dual-from
          ; from∘to = inverse-from-circle-to
-         ; to∘from = λ x -> equiv-pair (equiv-return-bot (proj₁ x)) (equiv-return-bot (proj₂ x))
+         ; to∘from = λ x -> equiv-pair (equiv-¬ (proj₁ x)) (equiv-¬ (proj₂ x))
          }
 ```
 
@@ -274,6 +274,16 @@ Do we also have the following?
 
 If so, prove; if not, can you give a relation weaker than
 isomorphism that relates the two sides?
+
+```agda
+open import plfa.part1.Isomorphism using (_≲_)
+
+
+half-×-dual-⊎ : forall {A B : Set} -> (¬ A ⊎ ¬ B) -> ¬ (A × B)
+half-×-dual-⊎ (inj₁ x) = λ (¬A , _) -> x ¬A
+half-×-dual-⊎ (inj₂ y) = λ (_ , ¬B) -> y ¬B
+
+```
 
 
 ## Intuitive and Classical logic
