@@ -4,7 +4,7 @@ permalink : /Negation/
 ---
 
 ```agda
-module plfa.part1.Negation where
+module cs.plfa.part1.Negation where
 ```
 
 This chapter introduces negation, and discusses intuitionistic
@@ -18,7 +18,7 @@ open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Product using (_×_)
-open import plfa.part1.Isomorphism using (_≃_; extensionality)
+open import plfa.part1.Isomorphism using (_≃_; extensionality; _∘_)
 ```
 
 
@@ -191,6 +191,9 @@ is irreflexive, that is, `n < n` holds for no `n`.
 
 ```agda
 -- Your code goes here
+open import cs.plfa.part1.Relations using (_<_; z<s; s<s)
+<-irreflexive : forall (n : ℕ) -> ¬ (n < n)
+<-irreflexive (suc k) (s<s n<n) = <-irreflexive k n<n
 ```
 
 
@@ -222,6 +225,71 @@ This result is an easy consequence of something we've proved previously.
 
 ```agda
 -- Your code goes here
+--open import cs.plfa.part1.Connectives using (_×_; ⟨_,_⟩; proj₁; proj₂; _⊎_; inj₁; inj₂)
+
+open import Data.Product using (_,_; proj₁; proj₂)
+
+case-⊎ : ∀ {A B C : Set}
+  → (A → C)
+  → (B → C)
+  → A ⊎ B
+    -----------
+  → C
+case-⊎ f g (inj₁ x) = f x
+case-⊎ f g (inj₂ y) = g y
+
+
+dual-from : forall {A B : Set} -> (¬ A) × (¬ B) -> ¬ (A ⊎ B)
+dual-from = λ{ ( ¬A , ¬B ) → case-⊎ ¬A ¬B }
+
+dual-to : forall {A B : Set} -> ¬ (A ⊎ B) -> (¬ A) × (¬ B)
+dual-to = λ ¬A⊎B → ((λ a → ¬A⊎B (inj₁ a)) , λ b -> ¬A⊎B (inj₂ b) )
+
+equiv-pair :  ∀ {A B : Set}
+           -> ∀ { x x' : A } -> ∀ { y y' : B }
+           -> x ≡ x' -> y ≡ y' -> (x , y) ≡ (x' , y')
+equiv-pair refl refl = refl
+
+extensionality-pair : ∀ {A B C D : Set}
+           -> ∀ { f f' : A -> B } -> ∀ { g g' : C -> D }
+           -> (∀ (x : A) -> f x ≡ f' x)
+           -> (∀ (y : C) -> g y ≡ g' y)
+           -> (f , g) ≡ (f' , g')
+extensionality-pair fs-match gs-match = equiv-pair (extensionality fs-match) (extensionality gs-match)
+
+test : ∀ (A B : Set) -> ∀ (x : ¬ (A ⊎ B)) -> dual-to x ≡ ((λ a → x (inj₁ a)) , λ b -> x (inj₂ b) )
+test A B x = extensionality-pair (λ (x : A) -> refl) (λ b -> refl)
+--
+--_ : ∀ (A B : Set) -> ∀ (x : ¬ (A ⊎ B)) -> ((λ ¬A⊎B → ((λ a → ¬A⊎B (inj₁ a)) , λ b -> ¬A⊎B (inj₂ b) )) x ≡ ((λ a → x (inj₁ a)) , λ b -> x (inj₂ b) ))
+--_ = λ (A B : Set) -> λ (x : ¬ (A ⊎ B)) -> {!!}
+--
+
+equiv-bot : ∀ {x : ⊥} -> ∀ (y : ⊥) -> x ≡ y
+equiv-bot ()
+
+equiv-return-bot : ∀ { A : Set} -> ∀ (f g : A -> ⊥) -> f ≡ g
+equiv-return-bot f g = extensionality (λ x -> equiv-bot (g x))
+
+equiv-return-bot' : ∀ { A : Set} -> ∀ {f : A -> ⊥} -> ∀ (g : A -> ⊥) -> f ≡ g
+equiv-return-bot' g = extensionality (λ x -> equiv-bot (g x))
+
+test2 : ∀ {A B : Set} -> ∀ (x : ¬ (A ⊎ B))
+      -> dual-from (dual-to x) ≡ case-⊎ (λ a → x (inj₁ a)) (λ b -> x (inj₂ b))
+test2 pf = extensionality (λ { (inj₁ x) → equiv-bot (pf (inj₁ x))
+                             ; (inj₂ y) → equiv-bot (pf (inj₂ y))
+                             })
+
+
+inverse-from-circle-to : ∀ {A B : Set} -> ∀ (x : ¬ (A ⊎ B)) → dual-from (dual-to x) ≡ x
+inverse-from-circle-to x = extensionality (λ pf -> equiv-bot (x pf))
+
+⊎-dual-× : forall {A B : Set} -> ¬ (A ⊎ B) ≃ (¬ A) × (¬ B)
+⊎-dual-× =
+  record { to = dual-to
+         ; from = dual-from
+         ; from∘to = inverse-from-circle-to
+         ; to∘from = λ x -> equiv-pair ( equiv-return-bot' (proj₁ x)) (equiv-return-bot' (proj₂ x))
+         }
 ```
 
 
