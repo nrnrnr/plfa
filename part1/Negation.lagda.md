@@ -238,47 +238,22 @@ case-⊎ : ∀ {A B C : Set}
 case-⊎ f g (inj₁ x) = f x
 case-⊎ f g (inj₂ y) = g y
 
+equiv-pair :  ∀ {A B : Set}
+           -> ∀ { x x' : A } -> ∀ { y y' : B }
+           -> x ≡ x' -> y ≡ y' -> (x , y) ≡ (x' , y')
+equiv-pair refl refl = refl
+
+equiv-bot : ∀ {x : ⊥} -> ∀ (y : ⊥) -> x ≡ y
+equiv-bot ()
+
+equiv-return-bot : ∀ { A : Set} -> ∀ {f : A -> ⊥} -> ∀ (g : A -> ⊥) -> f ≡ g
+equiv-return-bot g = extensionality (λ x -> equiv-bot (g x))
 
 dual-from : forall {A B : Set} -> (¬ A) × (¬ B) -> ¬ (A ⊎ B)
 dual-from = λ{ ( ¬A , ¬B ) → case-⊎ ¬A ¬B }
 
 dual-to : forall {A B : Set} -> ¬ (A ⊎ B) -> (¬ A) × (¬ B)
 dual-to = λ ¬A⊎B → ((λ a → ¬A⊎B (inj₁ a)) , λ b -> ¬A⊎B (inj₂ b) )
-
-equiv-pair :  ∀ {A B : Set}
-           -> ∀ { x x' : A } -> ∀ { y y' : B }
-           -> x ≡ x' -> y ≡ y' -> (x , y) ≡ (x' , y')
-equiv-pair refl refl = refl
-
-extensionality-pair : ∀ {A B C D : Set}
-           -> ∀ { f f' : A -> B } -> ∀ { g g' : C -> D }
-           -> (∀ (x : A) -> f x ≡ f' x)
-           -> (∀ (y : C) -> g y ≡ g' y)
-           -> (f , g) ≡ (f' , g')
-extensionality-pair fs-match gs-match = equiv-pair (extensionality fs-match) (extensionality gs-match)
-
-test : ∀ (A B : Set) -> ∀ (x : ¬ (A ⊎ B)) -> dual-to x ≡ ((λ a → x (inj₁ a)) , λ b -> x (inj₂ b) )
-test A B x = extensionality-pair (λ (x : A) -> refl) (λ b -> refl)
---
---_ : ∀ (A B : Set) -> ∀ (x : ¬ (A ⊎ B)) -> ((λ ¬A⊎B → ((λ a → ¬A⊎B (inj₁ a)) , λ b -> ¬A⊎B (inj₂ b) )) x ≡ ((λ a → x (inj₁ a)) , λ b -> x (inj₂ b) ))
---_ = λ (A B : Set) -> λ (x : ¬ (A ⊎ B)) -> {!!}
---
-
-equiv-bot : ∀ {x : ⊥} -> ∀ (y : ⊥) -> x ≡ y
-equiv-bot ()
-
-equiv-return-bot : ∀ { A : Set} -> ∀ (f g : A -> ⊥) -> f ≡ g
-equiv-return-bot f g = extensionality (λ x -> equiv-bot (g x))
-
-equiv-return-bot' : ∀ { A : Set} -> ∀ {f : A -> ⊥} -> ∀ (g : A -> ⊥) -> f ≡ g
-equiv-return-bot' g = extensionality (λ x -> equiv-bot (g x))
-
-test2 : ∀ {A B : Set} -> ∀ (x : ¬ (A ⊎ B))
-      -> dual-from (dual-to x) ≡ case-⊎ (λ a → x (inj₁ a)) (λ b -> x (inj₂ b))
-test2 pf = extensionality (λ { (inj₁ x) → equiv-bot (pf (inj₁ x))
-                             ; (inj₂ y) → equiv-bot (pf (inj₂ y))
-                             })
-
 
 inverse-from-circle-to : ∀ {A B : Set} -> ∀ (x : ¬ (A ⊎ B)) → dual-from (dual-to x) ≡ x
 inverse-from-circle-to x = extensionality (λ pf -> equiv-bot (x pf))
@@ -288,7 +263,7 @@ inverse-from-circle-to x = extensionality (λ pf -> equiv-bot (x pf))
   record { to = dual-to
          ; from = dual-from
          ; from∘to = inverse-from-circle-to
-         ; to∘from = λ x -> equiv-pair ( equiv-return-bot' (proj₁ x)) (equiv-return-bot' (proj₂ x))
+         ; to∘from = λ x -> equiv-pair (equiv-return-bot (proj₁ x)) (equiv-return-bot (proj₂ x))
          }
 ```
 
