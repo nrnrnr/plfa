@@ -478,27 +478,21 @@ imp->em : imp-as-dis -> em'
 em-dm : em' -> de-morgan
 
 em->dne em {A} with em {A}
-em->dne em {A} | inj₁ x = λ _ -> x
-em->dne em {A} | inj₂ y = λ ¬¬A -> any (¬¬A y)
+... | inj₁ x = λ _ -> x
+... | inj₂ y = λ ¬¬A -> any (¬¬A y)
 
 dne->em e {A} with e {A}
-dne->em d {A} | inj₁ x = λ _ -> x
-dne->em d {A} | inj₂ y = λ x → any (x y)
+... | inj₁ x = λ _ -> x
+... | inj₂ y = λ x → any (x y)
 
 dm->imp dm {A} {B} with dm {¬ A} {B}
 ... | e = λ x → e λ { (y , z) → y (z ∘ x)}
 
-de-morgan->em d {A} with d {A} {¬ A}
-... | e = e λ {(x , y) → y x}
+de-morgan->em d {A} = d {A} {¬ A} λ {(x , y) → y x}
 
 peirce->dn p {A} x = p {A} {⊥} (any ∘ x)
 
-
-dn->peirce dn {A} {B} weird = dn' λ x → x (weird (any ∘ x))
-  where dn' : ((A -> ⊥) -> ⊥) -> A
-        dn' = dn {A}
-
-
+dn->peirce dn {A} {B} weird = dn {A} λ x → x (weird (any ∘ x))
 
 imp->em i = plfa.part1.Isomorphism._≃_.from ⊎-comm (i (λ x -> x))
 
