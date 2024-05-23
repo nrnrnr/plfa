@@ -516,7 +516,8 @@ Show that any negated formula is stable, and that the conjunction
 of two stable formulas is stable.
 
 ```agda
--- Your code goes here
+negated-stable : ∀ (A : Set) -> Stable (¬ A)
+negated-stable A pf = λ x → pf (¬¬-intro x)
 ```
 
 ## Standard Prelude
