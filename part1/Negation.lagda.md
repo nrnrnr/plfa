@@ -418,6 +418,22 @@ just handed to him.
 Philip Wadler, _International Conference on Functional Programming_, 2003.)
 
 
+```agda
+-- Your code goes here
+⊎-comm : forall {A B : Set} -> A ⊎ B ≃ B ⊎ A
+⊎-comm = record { to = case-⊎ inj₂ inj₁
+                ; from = case-⊎ inj₂ inj₁
+                ; from∘to = λ{ (inj₁ x) -> refl
+                             ; (inj₂ x) -> refl
+                             } 
+                ; to∘from = λ{ (inj₁ x) -> refl
+                             ; (inj₂ x) -> refl
+                             } 
+                }
+
+```
+
+
 #### Exercise `Classical` (stretch)
 
 Consider the following principles:
@@ -432,6 +448,66 @@ Show that each of these implies all the others.
 
 ```agda
 -- Your code goes here
+any : ∀ {A : Set} -> ⊥ -> A
+any ()
+
+em' : Set₁ 
+em' = ∀ {A : Set} -> A ⊎ ¬ A
+
+dne : Set₁
+dne = ∀ {A : Set} -> ¬ ¬ A → A
+
+peirce : Set₁
+peirce = ∀ {A B : Set} -> ((A -> B) -> A) -> A
+
+imp-as-dis : Set₁
+imp-as-dis = ∀ {A B : Set} -> (A -> B) -> ¬ A ⊎ B
+
+de-morgan : Set₁
+de-morgan = ∀ {A B : Set} -> ¬ (¬ A × ¬ B) -> A ⊎ B
+
+------------------------
+
+em->dne : em' -> dne
+dne->em : em' -> dne
+de-morgan->em : de-morgan -> em'
+dm->imp : de-morgan -> imp-as-dis
+peirce->dn : peirce -> dne
+dn->peirce : dne -> peirce  
+imp->em : imp-as-dis -> em'
+em-dm : em' -> de-morgan
+
+em->dne em {A} with em {A}
+em->dne em {A} | inj₁ x = λ _ -> x
+em->dne em {A} | inj₂ y = λ ¬¬A -> any (¬¬A y)
+
+dne->em e {A} with e {A}
+dne->em d {A} | inj₁ x = λ _ -> x
+dne->em d {A} | inj₂ y = λ x → any (x y)
+
+dm->imp dm {A} {B} with dm {¬ A} {B}
+... | e = λ x → e λ { (y , z) → y (z ∘ x)}
+
+de-morgan->em d {A} with d {A} {¬ A}
+... | e = e λ {(x , y) → y x}
+
+peirce->dn p {A} x = p {A} {⊥} (any ∘ x)
+
+
+dn->peirce dn {A} {B} weird = dn' λ x → x (weird (any ∘ x))
+  where dn' : ((A -> ⊥) -> ⊥) -> A
+        dn' = dn {A}
+
+
+
+imp->em i = plfa.part1.Isomorphism._≃_.from ⊎-comm (i (λ x -> x))
+
+em-dm em {A} {B} notpair with em {A} | em {B}
+... | inj₁ x | _ = inj₁ x
+... | inj₂ y | inj₁ x = inj₂ x
+... | inj₂ y | inj₂ y₁ = any (notpair (y , y₁))
+
+
 ```
 
 
