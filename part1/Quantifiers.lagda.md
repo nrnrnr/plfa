@@ -4,7 +4,7 @@ permalink : /Quantifiers/
 ---
 
 ```agda
-module plfa.part1.Quantifiers where
+module cs.plfa.part1.Quantifiers where
 ```
 
 This chapter introduces universal and existential quantification.
@@ -90,9 +90,16 @@ dependent product is ambiguous.
 
 Show that universals distribute over conjunction:
 ```agda
-postulate
-  ∀-distrib-× : ∀ {A : Set} {B C : A → Set} →
+∀-distrib-× : ∀ {A : Set} {B C : A → Set} →
     (∀ (x : A) → B x × C x) ≃ (∀ (x : A) → B x) × (∀ (x : A) → C x)
+
+∀-distrib-× =
+  record { to = λ x → ⟨ proj₁ ∘ x , proj₂ ∘ x ⟩
+         ; from = λ x x₁ → ⟨ proj₁ x x₁ , proj₂ x x₁ ⟩
+         ; from∘to = λ mkBC → ∀-extensionality λ a → refl
+         ; to∘from = λ y → refl
+         }
+
 ```
 Compare this with the result (`→-distrib-×`) in
 Chapter [Connectives](/Connectives/).
@@ -248,9 +255,18 @@ establish the isomorphism is identical to what we wrote when discussing
 
 Show that existentials distribute over disjunction:
 ```agda
-postulate
-  ∃-distrib-⊎ : ∀ {A : Set} {B C : A → Set} →
+∃-distrib-⊎ : ∀ {A : Set} {B C : A → Set} →
     ∃[ x ] (B x ⊎ C x) ≃ (∃[ x ] B x) ⊎ (∃[ x ] C x)
+∃-distrib-⊎ = 
+  record { to = λ{ ⟨ a , inj₁ b ⟩ → (inj₁ ⟨ a , b ⟩)
+                 ; ⟨ a , inj₂ c ⟩ → (inj₂ ⟨ a , c ⟩)
+                 }
+         ; from = λ{ (inj₁ ⟨ a , bf ⟩) → ⟨ a , inj₁ bf ⟩
+                   ; (inj₂ ⟨ a , cf ⟩) → ⟨ a , inj₂ cf ⟩
+                   }
+         ; from∘to = λ{ ⟨ a , inj₁ x ⟩ → refl ; ⟨ a , inj₂ y ⟩ → refl }
+         ; to∘from = λ{ (inj₁ ⟨ a , bf ⟩) → refl ; (inj₂ ⟨ a , cf ⟩) → refl }
+         }
 ```
 
 #### Exercise `∃×-implies-×∃` (practice)
@@ -429,11 +445,23 @@ requires extensionality.
 
 Show that existential of a negation implies negation of a universal:
 ```agda
-postulate
-  ∃¬-implies-¬∀ : ∀ {A : Set} {B : A → Set}
+∃¬-implies-¬∀ : ∀ {A : Set} {B : A → Set}
     → ∃[ x ] (¬ B x)
       --------------
     → ¬ (∀ x → B x)
+∃¬-implies-¬∀ ⟨ a , ¬Ba ⟩ = λ find-B → ¬Ba (find-B a)
+
+open import Data.Empty using (⊥)
+
+any : ∀ {A : Set} -> ⊥ -> A
+any ()
+
+--converse : ∀ {A : Set} {B : A → Set}
+--    → ¬ (∀ x → B x)
+--    → ∃[ x ] (¬ B x)
+--converse {A} {B} negation = ⟨ any (negation {!!}) , {!!} ⟩
+
+
 ```
 Does the converse hold? If so, prove; if not, explain why.
 
@@ -481,6 +509,99 @@ which is a corollary of `≡Can`.
 
 ```agda
 -- Your code goes here
+open import cs.plfa.part1.Induction using (Bin; ⟨⟩; _O; _I; inc; suc-inc; double) renaming (from to toBin; to to fromBin)
+open import cs.plfa.part1.Relations using (Can; One; oneO; oneI; one; canzero; canone; from-to-law; inc-to-law) 
+open import Data.Nat using (_≤_; s≤s; z≤n)
+open import Data.Nat.Properties using (≤-trans)
+
+cong : ∀ {A B : Set} -> ∀ (f : A → B) {x y} → x ≡ y → f x ≡ f y
+cong f refl = refl
+
+
+
+double-positive-lemma : forall {n : ℕ} -> 1 ≤ n -> 1 ≤ (double n)
+double-positive-lemma (s≤s pf) = s≤s z≤n
+
+to-double-law : forall {n : ℕ} -> 1 ≤ n -> toBin (double n) ≡ toBin n O
+to-double-law {suc k} (s≤s pf) = to-double-law-suc k
+  where to-double-law-suc : forall (n : ℕ) -> toBin (double (suc n)) ≡ toBin (suc n) O
+        to-double-law-suc zero = refl
+        to-double-law-suc (suc k) rewrite to-double-law-suc k = refl
+
+from-one-pos : forall {b : Bin} -> One b -> 1 ≤ fromBin b
+from-one-pos one = s≤s z≤n
+from-one-pos (oneO pf) = double-positive-lemma (from-one-pos pf)
+from-one-pos (oneI pf) = s≤s (≤-trans z≤n (double-positive-lemma (from-one-pos pf)))
+
+to-from-one-law : forall {b : Bin} -> One b -> toBin (fromBin b) ≡ b
+to-from-one-law one = refl
+to-from-one-law (oneO pf) rewrite to-double-law (from-one-pos pf) = cong _O (to-from-one-law pf)
+to-from-one-law (oneI pf) rewrite to-double-law (from-one-pos pf) = cong _I (to-from-one-law pf)
+
+to-from-can-law : forall {b : Bin} -> Can b -> toBin (fromBin b) ≡ b
+to-from-can-law canzero = refl
+to-from-can-law (canone pf) = to-from-one-law pf
+
+
+≡One : ∀ {b : Bin} (o o′ : One b) → o ≡ o′
+≡One One.one One.one = refl
+≡One (One.oneO ob) (One.oneO ob') rewrite ≡One ob ob' = refl
+≡One (One.oneI ob) (One.oneI ob') rewrite ≡One ob ob' = refl
+
+≡Can : ∀ {b : Bin} (o o′ : Can b) → o ≡ o′
+≡Can Can.canzero Can.canzero = refl
+≡Can (Can.canone x) (Can.canone x₁) rewrite ≡One x x₁ = refl
+
+p1 : ∀ {A : Set} -> ∀ {B : A -> Set} -> Σ A B -> A
+p1 ⟨ a , _ ⟩ = a
+
+proj₁≡→One≡ : ∀ (c c′ : Σ Bin One) → p1 c ≡ p1 c′ → c ≡ c′
+proj₁≡→One≡ (⟨ x O , One.oneO x₁ ⟩) (⟨ x₂ O , One.oneO x₃ ⟩) refl =
+               Eq.cong liftO (proj₁≡→One≡ ⟨ x , x₁ ⟩ ⟨ x₂ , x₃ ⟩ refl)
+    where liftO = λ{ ⟨ b , pf ⟩ -> ⟨ b O , One.oneO pf ⟩}
+proj₁≡→One≡ ⟨ ⟨⟩ I , One.one ⟩ ⟨ ⟨⟩ I , One.one ⟩ refl = refl
+proj₁≡→One≡ ⟨ x I , One.oneI x₁ ⟩ ⟨ .(p1 ⟨ x I , One.oneI x₁ ⟩) , One.oneI x₃ ⟩ refl = 
+               Eq.cong liftI (proj₁≡→One≡ ⟨ x , x₁ ⟩ ⟨ x , x₃ ⟩ refl)
+    where liftI = λ{ ⟨ b , pf ⟩ -> ⟨ b I , One.oneI pf ⟩}
+
+
+proj₁≡→Can≡ : ∀ (c c′ : Σ Bin Can) → p1 c ≡ p1 c′ → c ≡ c′
+proj₁≡→Can≡ ⟨ ⟨⟩ , Can.canzero ⟩ ⟨ ⟨⟩ , Can.canzero ⟩ refl = refl
+proj₁≡→Can≡ ⟨ b , Can.canone x ⟩ ⟨ b' , Can.canone x' ⟩ refl =
+   Eq.cong (λ{⟨ b , b-one ⟩ -> ⟨ b , Can.canone b-one ⟩}) (proj₁≡→One≡ ⟨ b , x ⟩ ⟨ b' , x' ⟩ refl)
+
+
+one-inc-law : ∀ {b : Bin} -> One b -> One (inc b)
+one-inc-law one = oneO one
+one-inc-law (oneO pf) = oneI pf
+one-inc-law (oneI pf) = oneO (one-inc-law pf)
+
+to-one : ∀ {n : ℕ} -> One (toBin (suc n))
+to-one {zero} = one
+to-one {suc m} = one-inc-law to-one
+
+to-can : ∀ {n : ℕ} -> Can (toBin n)
+to-can {zero} = Can.canzero
+to-can {suc n} = Can.canone to-one
+
+-- eq-elements : ∀ {A B : Set} -> 
+
+to-from-exists-law : ∀ (y : ∃[ b ] Can b) ->
+                          ⟨ toBin ((λ { ⟨ b , _ ⟩ → fromBin b }) y) , to-can ⟩ ≡ y
+to-from-exists-law ⟨ b , Can-b ⟩ =
+     proj₁≡→Can≡ ⟨ (toBin (fromBin b)) , to-can ⟩ ⟨ b , Can-b ⟩ round-trip
+  where round-trip : toBin (fromBin b) ≡ b
+        round-trip = to-from-can-law Can-b
+
+unique-binary : ℕ ≃ ∃[ b ] Can b
+unique-binary = 
+  record { to = λ n → ⟨ toBin n , to-can ⟩
+         ; from = λ{ ⟨ b , _ ⟩ -> fromBin b }
+         ; from∘to = from-to-law
+         ; to∘from = to-from-exists-law
+         }
+
+
 ```
 
 
