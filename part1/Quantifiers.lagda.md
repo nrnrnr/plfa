@@ -588,15 +588,6 @@ to-can (suc n) = Can.canone (to-one {n})
 witness : ∀ {A : Set} {B : A -> Set} -> ∀ (y : Σ A B) -> A
 witness ⟨ a , _ ⟩ = a
 
---lambda-law : ∀ (y : Σ Bin Can) -> ((λ { ⟨ b , _ ⟩ → b }) y) ≡ witness y
---lambda-law ⟨ b , pf ⟩ = {!!}
-
---witness-law : ∀ (y : Σ Bin Can) -> ((λ { ⟨ b , _ ⟩ → fromBin b }) y) ≡ fromBin (witness y)
---witness-law ⟨ b , pf ⟩ = {!!}
-
-
-
-
 to-from-exists-law : ∀ (y : ∃[ b ] Can b) ->
          ⟨ toBin (fromBin (witness y)) , to-can (fromBin (witness y)) ⟩ ≡ y
 to-from-exists-law ⟨ b , Can-b ⟩ = 
