@@ -560,8 +560,8 @@ proj₁≡→One≡ (⟨ x O , One.oneO x₁ ⟩) (⟨ x₂ O , One.oneO x₃ �
                Eq.cong liftO (proj₁≡→One≡ ⟨ x , x₁ ⟩ ⟨ x₂ , x₃ ⟩ refl)
     where liftO = λ{ ⟨ b , pf ⟩ -> ⟨ b O , One.oneO pf ⟩}
 proj₁≡→One≡ ⟨ ⟨⟩ I , One.one ⟩ ⟨ ⟨⟩ I , One.one ⟩ refl = refl
-proj₁≡→One≡ ⟨ x I , One.oneI x₁ ⟩ ⟨ .(p1 ⟨ x I , One.oneI x₁ ⟩) , One.oneI x₃ ⟩ refl = 
-               Eq.cong liftI (proj₁≡→One≡ ⟨ x , x₁ ⟩ ⟨ x , x₃ ⟩ refl)
+proj₁≡→One≡ ⟨ x I , One.oneI pf ⟩ ⟨ x' I , One.oneI pf' ⟩ refl = 
+               Eq.cong liftI (proj₁≡→One≡ ⟨ x , pf ⟩ ⟨ x' , pf' ⟩ refl)
     where liftI = λ{ ⟨ b , pf ⟩ -> ⟨ b I , One.oneI pf ⟩}
 
 
@@ -578,25 +578,36 @@ one-inc-law (oneI pf) = oneO (one-inc-law pf)
 
 to-one : ∀ {n : ℕ} -> One (toBin (suc n))
 to-one {zero} = one
-to-one {suc m} = one-inc-law to-one
+to-one {suc m} = one-inc-law (to-one {m})
 
-to-can : ∀ {n : ℕ} -> Can (toBin n)
-to-can {zero} = Can.canzero
-to-can {suc n} = Can.canone to-one
+to-can : ∀ (n : ℕ) -> Can (toBin n)
+to-can zero = Can.canzero
+to-can (suc n) = Can.canone (to-one {n})
 
--- eq-elements : ∀ {A B : Set} -> 
+
+witness : ∀ {A : Set} {B : A -> Set} -> ∀ (y : Σ A B) -> A
+witness ⟨ a , _ ⟩ = a
+
+--lambda-law : ∀ (y : Σ Bin Can) -> ((λ { ⟨ b , _ ⟩ → b }) y) ≡ witness y
+--lambda-law ⟨ b , pf ⟩ = {!!}
+
+--witness-law : ∀ (y : Σ Bin Can) -> ((λ { ⟨ b , _ ⟩ → fromBin b }) y) ≡ fromBin (witness y)
+--witness-law ⟨ b , pf ⟩ = {!!}
+
+
+
 
 to-from-exists-law : ∀ (y : ∃[ b ] Can b) ->
-                          ⟨ toBin ((λ { ⟨ b , _ ⟩ → fromBin b }) y) , to-can ⟩ ≡ y
-to-from-exists-law ⟨ b , Can-b ⟩ =
-     proj₁≡→Can≡ ⟨ (toBin (fromBin b)) , to-can ⟩ ⟨ b , Can-b ⟩ round-trip
+         ⟨ toBin (fromBin (witness y)) , to-can (fromBin (witness y)) ⟩ ≡ y
+to-from-exists-law ⟨ b , Can-b ⟩ = 
+     proj₁≡→Can≡ ⟨ (toBin (fromBin b)) , to-can (fromBin b) ⟩ ⟨ b , Can-b ⟩ round-trip
   where round-trip : toBin (fromBin b) ≡ b
         round-trip = to-from-can-law Can-b
 
 unique-binary : ℕ ≃ ∃[ b ] Can b
 unique-binary = 
-  record { to = λ n → ⟨ toBin n , to-can ⟩
-         ; from = λ{ ⟨ b , _ ⟩ -> fromBin b }
+  record { to = λ n → ⟨ toBin n , to-can n ⟩
+         ; from = fromBin ∘ witness
          ; from∘to = from-to-law
          ; to∘from = to-from-exists-law
          }
