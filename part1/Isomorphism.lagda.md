@@ -146,8 +146,6 @@ dependent functions.
 open import cs.plfa.part1.Induction using (Bin; ⟨⟩; _O; _I; inc; suc-inc) renaming (to to fromBin; from to toBin)
 open import cs.plfa.part1.Relations using (adder; _+₂_; inc-+-law)
 
-
-
 commutative : (λ (m n : ℕ) -> toBin (m + n)) ≡
               (λ (m n : ℕ) -> (toBin m) +₂ (toBin n))
 commutative = extensionality (λ m -> extensionality (helper₁ m))
@@ -510,20 +508,7 @@ which satisfy the following property:
 Using the above, establish that there is an embedding of `ℕ` into `Bin`.
 ```agda
 
-from-to-law : ∀ (n : ℕ) → fromBin (toBin n) ≡ n
-from-to-law zero =
-  refl
-from-to-law (suc m) =
-  begin
-    fromBin (toBin (suc m))  
-  ≡⟨⟩
-    fromBin (inc (toBin m))
-  ≡⟨ suc-inc (toBin m) ⟩
-    suc (fromBin (toBin m))
-  ≡⟨ cong suc (from-to-law m) ⟩
-    suc m
-  ∎
-
+open import cs.plfa.part1.Relations using (from-to-law)
 
 embedNat : ℕ ≲ Bin
 embedNat =

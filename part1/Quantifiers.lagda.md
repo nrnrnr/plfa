@@ -510,38 +510,12 @@ which is a corollary of `≡Can`.
 ```agda
 -- Your code goes here
 open import cs.plfa.part1.Induction using (Bin; ⟨⟩; _O; _I; inc; suc-inc; double) renaming (from to toBin; to to fromBin)
-open import cs.plfa.part1.Relations using (Can; One; oneO; oneI; one; canzero; canone; from-to-law; inc-to-law) 
+open import cs.plfa.part1.Relations using (Can; One; oneO; oneI; one; canzero; canone; from-to-law; inc-to-law; to-from-one-law; to-from-can-law; from-one-pos; to-double-law; double-positive-lemma) 
 open import Data.Nat using (_≤_; s≤s; z≤n)
 open import Data.Nat.Properties using (≤-trans)
 
 cong : ∀ {A B : Set} -> ∀ (f : A → B) {x y} → x ≡ y → f x ≡ f y
 cong f refl = refl
-
-
-
-double-positive-lemma : forall {n : ℕ} -> 1 ≤ n -> 1 ≤ (double n)
-double-positive-lemma (s≤s pf) = s≤s z≤n
-
-to-double-law : forall {n : ℕ} -> 1 ≤ n -> toBin (double n) ≡ toBin n O
-to-double-law {suc k} (s≤s pf) = to-double-law-suc k
-  where to-double-law-suc : forall (n : ℕ) -> toBin (double (suc n)) ≡ toBin (suc n) O
-        to-double-law-suc zero = refl
-        to-double-law-suc (suc k) rewrite to-double-law-suc k = refl
-
-from-one-pos : forall {b : Bin} -> One b -> 1 ≤ fromBin b
-from-one-pos one = s≤s z≤n
-from-one-pos (oneO pf) = double-positive-lemma (from-one-pos pf)
-from-one-pos (oneI pf) = s≤s (≤-trans z≤n (double-positive-lemma (from-one-pos pf)))
-
-to-from-one-law : forall {b : Bin} -> One b -> toBin (fromBin b) ≡ b
-to-from-one-law one = refl
-to-from-one-law (oneO pf) rewrite to-double-law (from-one-pos pf) = cong _O (to-from-one-law pf)
-to-from-one-law (oneI pf) rewrite to-double-law (from-one-pos pf) = cong _I (to-from-one-law pf)
-
-to-from-can-law : forall {b : Bin} -> Can b -> toBin (fromBin b) ≡ b
-to-from-can-law canzero = refl
-to-from-can-law (canone pf) = to-from-one-law pf
-
 
 ≡One : ∀ {b : Bin} (o o′ : One b) → o ≡ o′
 ≡One One.one One.one = refl
