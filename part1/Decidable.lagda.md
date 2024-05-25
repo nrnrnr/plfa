@@ -4,7 +4,7 @@ permalink : /Decidable/
 ---
 
 ```agda
-module plfa.part1.Decidable where
+module cs.plfa.part1.Decidable where
 ```
 
 We have a choice as to how to represent relations:
@@ -292,8 +292,19 @@ trouble normalising evidence of negation.)
 
 Analogous to the function above, define a function to decide strict inequality:
 ```agda
-postulate
-  _<?_ : ∀ (m n : ℕ) → Dec (m < n)
+¬z<z : ¬ (0 < 0)
+¬z<z ()
+
+¬s<z : ∀ {n : ℕ} -> ¬ (suc n < 0)
+¬s<z ()
+
+_<?_ : ∀ (m n : ℕ) → Dec (m < n)
+zero <? zero = no ¬z<z
+zero <? suc n = yes z<s
+suc m <? zero = no ¬s<z
+suc m <? suc n with m <? n
+... | yes x = yes (s<s x)
+... | no x = no λ{ (s<s pf) → x pf}
 ```
 
 ```agda
@@ -548,10 +559,23 @@ Give analogues of the `_⇔_` operation from
 Chapter [Isomorphism](/Isomorphism/#iff),
 operation on booleans and decidables, and also show the corresponding erasure:
 ```agda
-postulate
-  _iff_ : Bool → Bool → Bool
-  _⇔-dec_ : ∀ {A B : Set} → Dec A → Dec B → Dec (A ⇔ B)
-  iff-⇔ : ∀ {A B : Set} (x : Dec A) (y : Dec B) → ⌊ x ⌋ iff ⌊ y ⌋ ≡ ⌊ x ⇔-dec y ⌋
+_iff_ : Bool → Bool → Bool
+true iff true = true
+true iff false = false
+false iff true = false
+false iff false = true
+
+_⇔-dec_ : ∀ {A B : Set} → Dec A → Dec B → Dec (A ⇔ B)
+yes a ⇔-dec yes b = yes (record { to = λ _ -> b ; from = λ _ -> a })
+yes a ⇔-dec no b = no λ x → b (_⇔_.to x a)
+no a ⇔-dec yes b = no λ x → a (_⇔_.from x b)
+no a ⇔-dec no b = yes (record { to = λ x → ⊥-elim (a x) ; from =  λ x -> ⊥-elim (b x) })
+
+iff-⇔ : ∀ {A B : Set} (x : Dec A) (y : Dec B) → ⌊ x ⌋ iff ⌊ y ⌋ ≡ ⌊ x ⇔-dec y ⌋
+iff-⇔ (yes a) (yes b) = refl
+iff-⇔ (yes a) (no ¬b) = refl
+iff-⇔ (no ¬a) (yes b) = refl
+iff-⇔ (no ¬a) (no ¬b) = refl
 ```
 
 ```agda
