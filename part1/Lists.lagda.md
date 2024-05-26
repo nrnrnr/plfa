@@ -358,7 +358,7 @@ reverse-++-distrib [] ys rewrite ++-identityʳ (reverse ys) = refl
 reverse-++-distrib (x ∷ xs) ys =
   begin 
     reverse (xs ++ ys) ++ [ x ]
-  ≡⟨ cong (λ zs -> zs ++ [ x ]) (reverse-++-distrib xs ys) ⟩
+  ≡⟨ cong (_++ [ x ]) (reverse-++-distrib xs ys) ⟩
     (reverse ys ++ reverse xs) ++ [ x ]
   ≡⟨ ++-assoc (reverse ys) (reverse xs) ([ x ]) ⟩
     reverse ys ++ reverse xs ++ [ x ]
@@ -377,6 +377,24 @@ as the identity function.  Show that reverse is an involution:
 
 ```agda
 -- Your code goes here
+reverse-singleton : ∀ {A : Set} -> ∀ (x : A) -> reverse [ x ] ≡ [ x ]
+reverse-singleton x = refl
+
+reverse-involution : ∀ {A : Set} -> ∀ (xs : List A) ->
+    reverse (reverse xs) ≡ xs
+reverse-involution [] = refl
+reverse-involution (x ∷ xs) =
+  begin
+    reverse (reverse xs ++ [ x ])
+  ≡⟨ reverse-++-distrib (reverse xs) ([ x ]) ⟩
+    reverse (reverse [ x ]) ++ reverse (reverse xs)
+  ≡⟨ cong (_++ (reverse (reverse xs))) (reverse-singleton x) ⟩
+    [ x ] ++ reverse (reverse xs)
+  ≡⟨ cong (x ∷_ ) (reverse-involution xs) ⟩
+    (x ∷ xs)
+  ∎
+
+
 ```
 
 
