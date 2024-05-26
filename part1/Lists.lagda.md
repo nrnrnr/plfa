@@ -4,7 +4,7 @@ permalink : /Lists/
 ---
 
 ```agda
-module plfa.part1.Lists where
+module cs.plfa.part1.Lists where
 ```
 
 This chapter discusses the list data type.  It gives further examples
@@ -352,6 +352,19 @@ reverse of the second appended to the reverse of the first:
 
 ```agda
 -- Your code goes here
+reverse-++-distrib : ∀ {A : Set} -> ∀ (xs ys : List A) ->
+    reverse (xs ++ ys) ≡ reverse ys ++ reverse xs
+reverse-++-distrib [] ys rewrite ++-identityʳ (reverse ys) = refl
+reverse-++-distrib (x ∷ xs) ys =
+  begin 
+    reverse (xs ++ ys) ++ [ x ]
+  ≡⟨ cong (λ zs -> zs ++ [ x ]) (reverse-++-distrib xs ys) ⟩
+    (reverse ys ++ reverse xs) ++ [ x ]
+  ≡⟨ ++-assoc (reverse ys) (reverse xs) ([ x ]) ⟩
+    reverse ys ++ reverse xs ++ [ x ]
+  ∎
+
+
 ```
 
 
