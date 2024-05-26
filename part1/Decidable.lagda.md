@@ -674,6 +674,41 @@ Show that both of the above are decidable.
     One? : ∀ (b : Bin) → Dec (One b)
     Can? : ∀ (b : Bin) → Dec (Can b)
 
+```agda
+open import cs.plfa.part1.Induction using (Bin; ⟨⟩; _O; _I; inc; suc-inc) renaming (to to fromBin; from to toBin)
+open import cs.plfa.part1.Relations using (adder; _+₂_; inc-+-law; One; one; oneO; oneI; Can; canzero; canone)
+open import cs.plfa.part1.Isomorphism using (embedNat)
+
+not-one-zero : ¬ (One ⟨⟩)
+not-one-zero ()
+
+One? : ∀ (b : Bin) → Dec (One b)
+One? ⟨⟩ = no not-one-zero
+One? (b O) with One? b
+... | yes x = yes (oneO x)
+... | no x = no λ{ (oneO pf) → x pf}
+One? (⟨⟩ I) = yes one
+One? ((b O) I) with One? (b O)
+... | yes pf = yes (oneI pf)
+... | no e = no λ{ (oneI x) → e x}
+One? ((b I) I) with One? (b I)
+... | yes pf = yes (oneI pf)
+... | no e = no λ{ (oneI x) → e x}
+
+Can? : ∀ (b : Bin) → Dec (Can b)
+Can? ⟨⟩ = yes canzero
+Can? (b O) with One? (b O)
+... | yes pf = yes (canone pf)
+... | no e = no λ { (canone x) → e x}
+Can? (b I) with One? (b I)
+... | yes pf = yes (canone pf)
+... | no e = no λ { (canone x) → e x}
+
+
+
+```
+
+
 
 
 ## Standard Library
