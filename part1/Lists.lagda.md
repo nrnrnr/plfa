@@ -691,6 +691,21 @@ Show that fold and append are related as follows:
 
 ```agda
 -- Your code goes here
+foldr-++ : ∀ {A B : Set} (_⊗_ : A → B → B) (e : B) (xs ys : List A) →
+    foldr _⊗_ e (xs ++ ys) ≡ foldr _⊗_ (foldr _⊗_ e ys) xs
+--foldr-++ _⊗_ e xs [] rewrite ++-identityʳ xs = refl
+--foldr-++ _⊗_ e xs (y ∷ ys) = {!!}
+foldr-++ _⊗_ e [] ys = refl
+foldr-++ _⊗_ e (x ∷ xs) ys =
+  begin
+    (x ⊗ foldr _⊗_ e (xs ++ ys))
+  ≡⟨ cong (x ⊗_) (foldr-++ _⊗_ e xs ys) ⟩
+    (x ⊗ foldr _⊗_ (foldr _⊗_ e ys) xs)
+  ∎
+
+
+
+
 ```
 
 #### Exercise `foldr-∷` (practice)
@@ -885,7 +900,7 @@ foldr-monoid _⊗_ e ⊗-monoid (x ∷ xs) y =
 In a previous exercise we showed the following.
 ```agda
 postulate
-  foldr-++ : ∀ {A : Set} (_⊗_ : A → A → A) (e : A) (xs ys : List A) →
+  foldr-++' : ∀ {A : Set} (_⊗_ : A → A → A) (e : A) (xs ys : List A) →
     foldr _⊗_ e (xs ++ ys) ≡ foldr _⊗_ (foldr _⊗_ e ys) xs
 ```
 
