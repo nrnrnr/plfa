@@ -751,6 +751,53 @@ equal to `n * (n ∸ 1) / 2`:
     sum (downFrom n) * 2 ≡ n * (n ∸ 1)
 
 ```agda
+sum-lemma : ∀ (n : ℕ) (ns : List ℕ) -> sum (n ∷ ns) ≡ n + sum ns
+sum-lemma n ns = refl
+
+eqn-n : (n : ℕ) -> Set
+eqn-n n = sum (downFrom n) * 2 ≡ n * (n ∸ 1)
+
+open import cs.plfa.part1.Induction using (*-distrib-+)
+open import cs.plfa.part1.Relations using (*-comm; *-zero)
+
+*ˡ-distrib-+ : ∀ (m p q : ℕ) -> m * (p + q) ≡ m * p + m * q
+*ˡ-distrib-+ m p q = 
+  begin 
+    m * (p + q)
+  ≡⟨ *-comm m (p + q) ⟩
+    (p + q) * m
+  ≡⟨ *-distrib-+ p q m ⟩
+    p * m + q * m
+  ≡⟨ cong (_+ (q * m)) (*-comm p m) ⟩
+    m * p + q * m
+  ≡⟨ cong (m * p +_) (*-comm q m) ⟩
+    m * p + m * q
+  ∎
+
+
+sum-down : ∀ (n : ℕ) -> sum (downFrom n) * 2 ≡ n * (n ∸ 1)
+sum-down zero = refl
+sum-down (suc n) = 
+    begin 
+      sum (n ∷ downFrom n) * 2
+    ≡⟨⟩
+      (n + sum (downFrom n)) * 2
+    ≡⟨ *-distrib-+ n (sum (downFrom n)) 2 ⟩
+      (n * 2) + sum (downFrom n) * 2
+    ≡⟨ cong ((n * 2) +_) (sum-down n) ⟩
+      (n * 2) + n * (n ∸ 1)
+    ≡⟨ sym (*ˡ-distrib-+ n 2 (n ∸ 1)) ⟩
+      n * (2 + (n ∸ 1))
+    ≡⟨ lemma1 n ⟩
+      n * (suc n)
+    ≡⟨ *-comm n (suc n) ⟩
+      (suc n) * (suc n ∸ 1)
+    ∎
+ where lemma1 : ∀ (n : ℕ) -> n * suc (suc (n ∸ 1)) ≡ n * suc n
+       lemma1 zero = refl
+       lemma1 (suc m) = refl
+
+
 -- Your code goes here
 ```
 
