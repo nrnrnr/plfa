@@ -565,6 +565,13 @@ The last step of the proof requires extensionality.
 
 ```agda
 -- Your code goes here
+open import plfa.part1.Isomorphism using (extensionality)
+map-compose : ∀ {A B C : Set} -> ∀ (f : A -> B) -> ∀ (g : B -> C) -> 
+    map (g ∘ f) ≡ map g ∘ map f
+map-compose {A} f g = extensionality elements
+  where elements : ∀ (as : List A) -> map (g ∘ f) as ≡ map g (map f as)
+        elements [] = refl
+        elements (a ∷ as) = cong (((g ∘ f) a) ∷_) (elements as)
 ```
 
 #### Exercise `map-++-distribute` (practice)
