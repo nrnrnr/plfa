@@ -1170,6 +1170,35 @@ You will need to use extensionality.
 
 ```agda
 -- Your code goes here
+lemma : ∀ {A : Set} {P : A -> Set} (xs : List A) -> All (¬_ ∘ (λ v → P v)) xs ≡ All (¬_ ∘ P) xs
+lemma xs = refl
+
+¬Any≃All¬ : ∀ {A : Set} {P : A -> Set} (xs : List A) -> (¬_ ∘ Any P) xs ≃ All (¬_ ∘ P) xs
+¬Any≃All¬ xs = record { to = to xs ; from = from xs ; from∘to = from-to xs ; to∘from = to-from xs }
+ where equiv = ¬Any⇔All¬
+
+
+       to : ∀ {A : Set} {P : A -> Set} (xs : List A) -> (¬_ ∘ Any P) xs -> All (¬_ ∘ P) xs
+       from : ∀ {A : Set} {P : A -> Set} (xs : List A) -> All (¬_ ∘ P) xs -> (¬_ ∘ Any P) xs
+       to xs = _⇔_.to (equiv xs)
+       from xs = _⇔_.from (equiv xs)
+       from-to  : ∀ {A : Set} {P : A -> Set} (xs : List A) -> (pf : (¬_ ∘ Any P) xs) → from xs (to xs pf) ≡ pf
+       to-from : ∀ {A : Set} {P : A -> Set} (xs : List A) -> (pf : All (¬_ ∘ P) xs) → to xs (from xs pf) ≡ pf
+
+       to-from [] [] = refl
+       to-from (x ∷ xs) (pf ∷ pfs) = cong (pf ∷_) (to-from xs pfs)
+
+       extended-from-to : ∀ {A : Set} {P : A -> Set} -> 
+                          (xs : List A) (pf : (¬_ ∘ Any P) xs) (pfs : Any P xs) →
+                          from xs (to xs pf) pfs ≡ pf pfs
+       extended-from-to [] pf ()
+       extended-from-to (x ∷ xs) pf (here x₁) = refl
+       extended-from-to (x ∷ xs) pf (there pfs) = extended-from-to xs (pf ∘ there) pfs
+
+
+       from-to xs pf = extensionality (extended-from-to xs pf)
+  
+
 ```
 
 #### Exercise `All-∀` (practice)
