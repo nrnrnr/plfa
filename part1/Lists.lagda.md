@@ -1056,7 +1056,33 @@ replacement for `_×_`.  As a consequence, demonstrate an equivalence relating
 `_∈_` and `_++_`.
 
 ```agda
--- Your code goes here
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+
+Any-++-⇔ : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
+  Any P (xs ++ ys) ⇔ (Any P xs ⊎ Any P ys)
+Any-++-⇔ xs ys =
+   record { to = to xs ys; from = from xs ys }
+ where 
+  to : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
+    Any P (xs ++ ys) → (Any P xs ⊎ Any P ys)
+  from : ∀ { A : Set} {P : A → Set} (xs ys : List A) →
+    Any P xs ⊎ Any P ys → Any P (xs ++ ys)
+
+  extra : ∀ { A : Set} {P : A → Set} (xs ys : List A) → Any P xs -> Any P (xs ++ ys)
+  extra (x ∷ xs) ys (here x₁) = here x₁
+  extra (x ∷ xs) ys (there pf) = there (extra xs ys pf)
+
+  to [] ys pf = inj₂ pf
+  to (x ∷ xs) ys (here x₁) = inj₁ (here x₁)
+  to (x ∷ xs) ys (there pf) with to xs ys pf
+  ... | inj₁ x₁ = inj₁ (there x₁)
+  ... | inj₂ y = inj₂ y
+  from xs ys (inj₁ x) = extra xs ys x
+  from [] ys (inj₂ y) = y
+  from (x ∷ xs) ys (inj₂ y) = there (from xs ys (inj₂ y))
+
+
+
 ```
 
 #### Exercise `All-++-≃` (stretch)
@@ -1065,6 +1091,31 @@ Show that the equivalence `All-++-⇔` can be extended to an isomorphism.
 
 ```agda
 -- Your code goes here
+All-++-≃ : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
+  All P (xs ++ ys) ≃ (All P xs × All P ys)
+All-++-≃ {A} {P} xs ys = 
+  record { to = to xs ys; from = from xs ys
+         ; from∘to = from-to xs ys
+         ; to∘from = to-from xs ys
+         }
+ where equiv = All-++-⇔
+       to : ∀ (xs ys : List A) -> (All P (xs ++ ys)) → All P xs × All P ys
+       from : ∀ (xs ys : List A) -> All P xs × All P ys -> (All P (xs ++ ys))
+       to xs ys = _⇔_.to (equiv xs ys)
+       from xs ys = _⇔_.from (equiv xs ys)
+       from-to  : ∀ (xs ys : List A) -> (pf : All P (xs ++ ys)) → from xs ys (to xs ys pf) ≡ pf
+       to-from : (xs ys : List A) -> (pf : All P xs × All P ys) → to xs ys (from xs ys pf) ≡ pf
+       to-from [] ys ⟨ [] , pys ⟩ = refl
+       to-from (x ∷ xs) ys ⟨ px ∷ pxs , pys ⟩ =
+          begin
+            to (x ∷ xs) ys (from (x ∷ xs) ys ⟨ px ∷ pxs , pys ⟩)
+          ≡⟨⟩
+            to (x ∷ xs) ys (px ∷ from (xs) ys ⟨ pxs , pys ⟩)
+          ≡⟨ cong (λ{⟨ f , s ⟩ -> ⟨ px ∷ f , s ⟩}) (to-from xs ys ⟨ pxs , pys ⟩) ⟩ 
+            ⟨ px ∷ pxs , pys ⟩
+          ∎
+       from-to [] ys pf = refl
+       from-to (x ∷ xs) ys (pf ∷ pfs) = cong (pf ∷_) (from-to xs ys pfs)
 ```
 
 #### Exercise `¬Any⇔All¬` (recommended)
@@ -1085,7 +1136,31 @@ If so, prove; if not, explain why.
 
 
 ```agda
--- Your code goes here
+¬Any⇔All¬ : ∀ {A : Set} {P : A -> Set} (xs : List A) -> (¬_ ∘ Any P) xs ⇔ All (¬_ ∘ P) xs
+¬Any⇔All¬ xs = record { to = to xs; from = from xs } 
+  where to : ∀ {A : Set} {P : A -> Set} (xs : List A) -> (¬_ ∘ Any P) xs -> All (¬_ ∘ P) xs
+        from : ∀ {A : Set} {P : A -> Set} (xs : List A) -> All (¬_ ∘ P) xs -> (¬_ ∘ Any P) xs
+        to [] _ = []
+        to (x ∷ xs) pf = (pf ∘ here) ∷ to xs (pf ∘ there)
+        from [] [] ()
+        from (x ∷ xs) (pf ∷ pfs) = λ{ (here x) → pf x ; (there x₁) → from xs pfs x₁ }
+
+open import Data.Empty using (⊥-elim)
+
+--de-morgan-query : ∀ {A : Set} {P : A -> Set} (xs : List A) -> (¬_ ∘ All P) xs ⇔ Any (¬_ ∘ P) xs
+--de-morgan-query {A} {P} zs = record { to = to zs; from = from zs } 
+--  where to : ∀ {A : Set} {P : A -> Set} (xs : List A) -> (¬_ ∘ All P) xs -> Any (¬_ ∘ P) xs
+--        from : ∀ {A : Set} {P : A -> Set} (xs : List A) -> Any (¬_ ∘ P) xs -> (¬_ ∘ All P) xs
+--        to [] pf = ⊥-elim (pf [])
+--        to {A} {P} (x ∷ xs) pf = here λ x₁ → {!!}
+--        from [] ()
+--        from (x ∷ xs) (here pf) = λ { (x ∷ x₁) → pf x}
+--        from (x ∷ xs) (there pf) = λ{ (x ∷ x₁) → from xs pf x₁}
+
+
+-- When you have `¬ (All P xs)`, you don't know *which* element of xs
+-- falsifies P.  So you have no way to construct the evident for `Any (¬ P) xs`.
+
 ```
 
 #### Exercise `¬Any≃All¬` (stretch)
