@@ -1282,6 +1282,14 @@ with their corresponding proofs.
       → ∃[ xs ] ∃[ ys ] ( merge xs ys zs × All P xs × All (¬_ ∘ P) ys )
 
 ```agda
+split : ∀ {A : Set} {P : A → Set} (P? : Decidable P) (zs : List A)
+      → ∃[ xs ] ∃[ ys ] ( merge xs ys zs × All P xs × All (¬_ ∘ P) ys )
+split P? [] = ⟨ [] , ⟨ [] , ⟨ [] , ⟨ [] , [] ⟩ ⟩ ⟩ ⟩
+split P? (z ∷ zs) with P? z | split P? zs
+... | yes Pz | ⟨ xs , ⟨ ys , ⟨ xs-ys-zs , ⟨ Pxs , ¬Pys ⟩ ⟩ ⟩ ⟩ = 
+                         ⟨ (z ∷ xs) , ⟨ ys , ⟨ (left-∷ xs-ys-zs) , ⟨ Pz ∷ Pxs , ¬Pys ⟩ ⟩ ⟩ ⟩
+... | no ¬Pz | ⟨ xs , ⟨ ys , ⟨ xs-ys-zs , ⟨ Pxs , ¬Pys ⟩ ⟩ ⟩ ⟩ = 
+                         ⟨ (xs) , ⟨ z ∷ ys , ⟨ (right-∷ xs-ys-zs) , ⟨ Pxs , ¬Pz ∷ ¬Pys ⟩ ⟩ ⟩ ⟩
 -- Your code goes here
 ```
 
