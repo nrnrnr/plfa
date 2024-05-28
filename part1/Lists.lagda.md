@@ -1236,6 +1236,17 @@ analogues `any` and `Any?` which determine whether a predicate holds
 for some element of a list.  Give their definitions.
 
 ```agda
+any : ∀ {A : Set} → (A → Bool) → List A → Bool
+any p = foldr _∨_ false ∘ map p
+
+Any? : ∀ {A : Set} {P : A → Set} → Decidable P → Decidable (Any P)
+Any? P? [] = no (λ ())
+Any? P? (x ∷ xs) with P? x   | Any? P? xs
+...                 | no ¬Px | no ¬Pxs     =  no λ{ (here x) → ¬Px x ; (there xs) → ¬Pxs xs}
+...                 | yes Px | _           =  yes (here Px)
+...                 | _      | yes Pxs     =  yes (there Pxs)
+
+
 -- Your code goes here
 ```
 
