@@ -1170,9 +1170,6 @@ You will need to use extensionality.
 
 ```agda
 -- Your code goes here
-lemma : ∀ {A : Set} {P : A -> Set} (xs : List A) -> All (¬_ ∘ (λ v → P v)) xs ≡ All (¬_ ∘ P) xs
-lemma xs = refl
-
 ¬Any≃All¬ : ∀ {A : Set} {P : A -> Set} (xs : List A) -> (¬_ ∘ Any P) xs ≃ All (¬_ ∘ P) xs
 ¬Any≃All¬ xs = record { to = to xs ; from = from xs ; from∘to = from-to xs ; to∘from = to-from xs }
  where equiv = ¬Any⇔All¬
@@ -1331,6 +1328,362 @@ split P? (z ∷ zs) with P? z | split P? zs
 ... | no ¬Pz | ⟨ xs , ⟨ ys , ⟨ xs-ys-zs , ⟨ Pxs , ¬Pys ⟩ ⟩ ⟩ ⟩ = 
                          ⟨ (xs) , ⟨ z ∷ ys , ⟨ (right-∷ xs-ys-zs) , ⟨ Pxs , ¬Pz ∷ ¬Pys ⟩ ⟩ ⟩ ⟩
 -- Your code goes here
+```
+
+## Ordered lists
+
+```agda
+data Ordered : (List ℕ -> Set) where
+  ordered-[] : Ordered []
+  ordered-[x] : ∀ {n : ℕ} -> Ordered [ n ]
+  ordered-∷ : ∀ {n₁ n₂ : ℕ} {ns : List ℕ} -> n₁ ≤ n₂ -> Ordered (n₂ ∷ ns) 
+            -> Ordered (n₁ ∷ n₂ ∷ ns)
+
+
+open import Data.Nat.Properties using (≤-trans)
+
+Ordered-≤ : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) ⇔ (Ordered ns × All (λ y -> n ≤ y) ns)
+Ordered-≤ n ns = record { to = to n ns ; from = from n ns }
+  where lemma1 : ∀ (n m : ℕ) (xs : List ℕ) -> n ≤ m -> All (_≤_ m) xs -> All (_≤_ n) xs
+        lemma1 n m [] n≤m [] = []
+        lemma1 n m (y ∷ ys) n≤m (m≤y ∷ pf) = n≤y ∷ lemma1 n m ys n≤m pf
+          where n≤y = ≤-trans n≤m m≤y
+
+        to : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) -> (Ordered ns × All (λ y -> n ≤ y) ns)
+        from : ∀ (n : ℕ) (ns : List ℕ) -> (Ordered ns × All (λ y -> n ≤ y) ns) -> Ordered (n ∷ ns)
+
+        to n [] ordered-[x] = ⟨ ordered-[] , [] ⟩
+        to n (m ∷ ms) (ordered-∷ n≤m pf) with to m ms pf
+        ... | ⟨ _ , m≤ms ⟩ = ⟨ pf , (n≤m ∷ lemma1 n m ms n≤m m≤ms) ⟩
+        from n [] ⟨ O-ns , n≤ns ⟩ = ordered-[x]
+        from n [ x ] ⟨ ordered-[x] , n≤x ∷ _ ⟩ = ordered-∷ n≤x ordered-[x]
+        from n (x ∷ y ∷ ys) ⟨ ordered-∷ x≤y O-y-ys , n≤x ∷ n≤all ⟩ =
+           ordered-∷ n≤x (ordered-∷ x≤y O-y-ys)
+        
+data Order (m n : ℕ) : Set where
+  less : m ≤ n -> Order  m n
+  greater : n ≤ m -> Order  m n
+
+compare : (m n : ℕ) -> Order m n
+compare zero n = less z≤n
+compare (suc m) zero = greater z≤n
+compare (suc m) (suc n) with compare m n
+... | less x = less (s≤s x)
+... | greater x = greater (s≤s x)
+
+
+open import Data.Product using (Σ-syntax)
+--open import cs.plfa.part1.Decidable using (yes; no; _≤?_; ¬s≤z; ¬s≤s)
+
+----  ¬s≤z : ∀ {m : ℕ} → ¬ (suc m ≤ zero)
+----  ¬s≤z ()
+----  
+----  ¬s≤s : ∀ {m n : ℕ} → ¬ (m ≤ n) → ¬ (suc m ≤ suc n)
+----  ¬s≤s ¬m≤n (s≤s m≤n) = ¬m≤n m≤n
+----  
+----  _≤?_ : ∀ (m n : ℕ) → Dec (m ≤ n)
+----  zero  ≤? n                   =  yes z≤n
+----  suc m ≤? zero                =  no ¬s≤z
+----  suc m ≤? suc n with m ≤? n
+----  ...               | yes m≤n  =  yes (s≤s m≤n)
+----  ...               | no ¬m≤n  =  no (¬s≤s ¬m≤n)
+----  
+----  
+
+extract : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs -> List A
+extract [] = []
+extract (left-∷ {x} m) = x ∷ extract m
+extract (right-∷ {y} m) = y ∷ extract m
+
+extract-≡ : ∀ {A : Set} {xs ys zs : List A} -> (m : merge xs ys zs) -> extract m ≡ zs
+extract-≡ [] = refl
+extract-≡ (left-∷ {x} m) = cong (x ∷_) (extract-≡ m)
+extract-≡ (right-∷ {y} m) = cong (y ∷_) (extract-≡ m)
+
+mergex : (xs ys : List ℕ) -> List ℕ
+mergex [] ys = ys
+mergex xs [] = xs
+mergex (x ∷ xs) (y ∷ ys) with compare x y | mergex xs (y ∷ ys) | mergex (x ∷ xs) ys
+...     | less _ | zs | _ = x ∷ zs
+...     | greater _ | _ | zs = y ∷ zs
+
+merge≤ : ∀ (xs ys : List ℕ) -> ∃[ zs ] (merge xs ys zs)
+merge≤ [] [] = ⟨ [] , [] ⟩
+merge≤ (x ∷ xs) [] with merge≤ xs [] 
+... | ⟨ zs , merge ⟩ = ⟨ (x ∷ zs) , (left-∷ merge) ⟩
+merge≤ [] (y ∷ ys) with merge≤ [] ys
+... | ⟨ zs , merge ⟩ = ⟨ (y ∷ zs) , (right-∷ merge) ⟩
+merge≤ (x ∷ xs) (y ∷ ys) with compare x y | merge≤ xs (y ∷ ys) | merge≤ (x ∷ xs) ys
+... | less _ | ⟨ zs , merge ⟩ | _ = ⟨ x ∷ zs , left-∷ merge ⟩
+... | greater _ | _ | ⟨ zs , merge ⟩ = ⟨ (y ∷ zs) , (right-∷ merge) ⟩
+
+
+
+
+
+data _implies_ {A : Set} : (P Q : A -> Set) -> Set where
+  implication : ∀ {P Q : A → Set}
+    → (∀ (x : A) → P x -> Q x)
+      -----------------------
+    → P implies Q
+
+
+all-implies : ∀ {A : Set} (P Q : A -> Set) -> (P implies Q) ->
+              ∀ {xs : List A} -> All P xs -> All Q xs
+all-implies P Q implies [] = []
+all-implies P Q (implication P->Q) {x ∷ xs} (Px ∷ pf) = P->Q x Px ∷ all-implies P Q (implication P->Q) pf
+
+any-bigger : ∀ {A : Set} {x : A} {xs : List A} (P : A -> Set) -> 
+             Any P xs -> Any P (x ∷ xs)
+any-bigger P pf = there pf 
+
+
+all-any-bigger-lemma : ∀ {A : Set} {x : A} {xs zs : List A}
+           -> All (λ section → Any (_≡_ section) zs) xs
+           -> All (λ section → Any (_≡_ section) (x ∷ zs)) xs
+all-any-bigger-lemma [] = []
+all-any-bigger-lemma {A} {x} {xs} {zs} (x∈zs ∷ pfs) =
+           (there x∈zs) ∷ all-implies P Q (implication (λ v → any-bigger (_≡_ v))) pfs
+  where P : A -> Set
+        Q : A -> Set
+        P section = Any (_≡_ section) zs
+        Q section = Any (_≡_ section) (x ∷ zs)
+
+
+merge-keep-xs : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs -> All (_∈ zs) xs
+merge-keep-ys : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs -> All (_∈ zs) ys
+merge-only-xs-ys : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs ->
+                    All (λ z -> z ∈ xs ⊎ z ∈ ys) zs
+
+merge-keep-xs [] = []
+merge-keep-xs (left-∷ pf) = here refl ∷ merge-keep-xs (right-∷ pf)
+merge-keep-xs {A} (right-∷ {x} {xs} {ys} {zs} pf) with merge-keep-xs pf
+... | thing = all-any-bigger-lemma thing
+  where Q = λ v -> Any (_≡_ v) (x ∷ zs)
+        P : A -> Set
+        P = λ v -> Any (_≡_ v) (zs)
+-- Goal: All (λ section → Any (_≡_ section) (x ∷ zs)) xs
+
+merge-keep-ys [] = []
+merge-keep-ys {A} (left-∷ {x} {xs} {ys} {zs} pf) = all-any-bigger-lemma (merge-keep-ys pf)
+merge-keep-ys (right-∷ pf) = (here refl) ∷ (merge-keep-ys (left-∷ pf))
+
+merge-only-xs-ys [] = []
+merge-only-xs-ys (left-∷ {x} {xs} {ys} {zs} pf) =
+     inj₁ (here refl) ∷ all-implies P Q (implication P->Q) (merge-only-xs-ys pf)
+  where Q = λ z → Any (_≡_ z) (x ∷ xs) ⊎ Any (_≡_ z) ys
+        P = λ z → Any (_≡_ z) xs ⊎ Any (_≡_ z) ys
+
+        P->Q : ∀ {A : Set} {x : A} {xs ys : List A} (z : A) ->
+                 Any (_≡_ z) xs ⊎ Any (_≡_ z) ys -> 
+                 Any (_≡_ z) (x ∷ xs) ⊎ Any (_≡_ z) ys
+        P->Q z (inj₁ z∈xs) = inj₁ (there z∈xs)
+        P->Q z (inj₂ z∈ys) = inj₂ z∈ys
+
+merge-only-xs-ys (right-∷ {y} {xs} {ys} {zs} pf) =
+     inj₂ (here refl) ∷ all-implies P Q (implication P->Q) (merge-only-xs-ys pf)
+  where Q = λ z → Any (_≡_ z) xs ⊎ Any (_≡_ z) (y ∷ ys)
+        P = λ z → Any (_≡_ z) xs ⊎ Any (_≡_ z) ys
+
+        P->Q : ∀ {A : Set} {y : A} {ys xs : List A} (z : A) ->
+               Any (_≡_ z) xs ⊎ Any (_≡_ z) ys ->
+               Any (_≡_ z) xs ⊎ Any (_≡_ z) (y ∷ ys)
+
+        P->Q z (inj₁ z∈xs) = inj₁ z∈xs
+        P->Q z (inj₂ z∈ys) = inj₂ (there z∈ys)
+
+
+merge-keep : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs 
+           -> All (_∈ zs) xs × All (_∈ zs) ys × All (λ z -> z ∈ xs ⊎ z ∈ ys) zs
+merge-keep m = ⟨ (merge-keep-xs m) , ⟨ (merge-keep-ys m) , (merge-only-xs-ys m) ⟩ ⟩
+
+
+data Permutation++ {A : Set} : (xs ys zs : List A) -> Set where
+  -- xs is a permutation of ys ++ zs
+  [] : Permutation++ [] [] []
+  here : {xs ys zs : List A} -> {x : A} -> Permutation++ xs ys zs
+      ->  Permutation++ (x ∷ xs) ys (x ∷ zs)
+  there-left : {xs ys zs : List A} -> {y : A}
+       -> Permutation++ xs (y ∷ ys) zs
+       -> Permutation++ xs ys (y ∷ zs)
+  there-right : {xs ys zs : List A} -> {z : A}
+       -> Permutation++ xs ys (z ∷ zs)
+       -> Permutation++ xs (z ∷ ys) zs
+
+data Permutation {A : Set} : (xs ys : List A) -> Set where
+  permutation : ∀ {xs zs : List A} -> Permutation++ xs [] zs -> Permutation xs zs
+
+_ : Permutation [ 1 , 2 ] [ 2 , 1 ]
+_ = permutation (there-left (here (there-right (here []))))
+
+_ : Permutation [ 1 , 2 , 3 ] [ 3 , 1 , 2 ]
+_ = permutation (there-left (here (here (there-right (here [])))))
+
+self-permutation : ∀ {A : Set} (xs : List A) -> Permutation xs xs
+self-permutation [] = permutation []
+self-permutation (x ∷ xs) with self-permutation xs
+... | permutation pxs = permutation (here pxs)
+
+self-permutation++ : ∀ {A : Set} {xs : List A} -> Permutation++ xs [] xs
+self-permutation++ {A} {[]} = []
+self-permutation++ {A} {x ∷ xs} = here self-permutation++
+
+shunt-self-permutation++ : ∀ {A : Set} {xs ys : List A} -> Permutation++ (shunt xs ys) xs ys
+shunt-self-permutation++ {A} {[]} {ys} = self-permutation++
+shunt-self-permutation++ {A} {x ∷ xs} {ys} = there-right shunt-self-permutation++
+
+perm-shunt : ∀ {A : Set} (xs ys zs : List A)
+           -> Permutation++ xs ys zs -> Permutation++ xs [] (shunt ys zs)
+perm-shunt xs [] zs pf = pf
+perm-shunt xs (x ∷ ys) zs pf = perm-shunt xs ys (x ∷ zs) (there-left pf)
+
+shunt-perm : ∀ {A : Set} (xs ys zs : List A)
+           -> Permutation++ xs [] (shunt ys zs)
+           -> Permutation++ xs ys zs
+shunt-perm xs [] zs pf = pf
+shunt-perm xs (y ∷ ys) zs pf = there-right (shunt-perm xs ys (y ∷ zs) pf)
+
+placementx : ∀ {A : Set} (xs yls yrs : List A) (x : A)
+          -> Permutation++ xs yls yrs
+          -> Permutation++ (x ∷ xs) yls (x ∷ yrs)
+placementx xs yls yrs x pf = here pf
+
+self-reverse-permutation++ : ∀ {A : Set} {xs : List A} -> Permutation++ xs xs []
+self-reverse-permutation++ {A} {[]} = []
+self-reverse-permutation++ {A} {x ∷ xs} = there-right (here (self-reverse-permutation++))
+
+--placement++ : ∀ {A : Set} (xs ls rs : List A) (x : A)
+--> Permutation++ xs ls rs -> Permutation++ (x ∷ xs) ls (x ∷ rs)
+
+
+placement : ∀ {A : Set} (x : A) (xs ys : List A) 
+          -> Permutation (x ∷ shunt xs ys) (shunt xs (x ∷ ys))
+placement x xs ys =
+  permutation (perm-shunt (x ∷ shunt xs ys) xs (x ∷ ys) (here shunt-self-permutation++))
+
+
+--perm++ : ∀ {A : Set} (xs xsˡ xsʳ ys ys' : List A)
+--       -> Permutation++ xs xsˡ xsʳ -> Permutation ys ys' -> Permutation (xs ++ ys) (xsˡ ++ xsʳ ++ ys')
+--perm++ .[] .[] .[] ys ys' [] pys = pys
+--perm++ (x ∷ xs) xls (xr ∷ xrs) ys ys' (here pxs) pys
+--  with perm++ xs xls xrs ys ys' pxs pys
+--... | permutation x₁ = {!!}
+--perm++ (x ∷ xs) xls (xr ∷ xrs) ys ys' (there-left pxs) pys = {!!}
+--perm++ (x ∷ xs) (xl ∷ xls) xrs ys ys' (there-right pxs) pys = {!!}
+
+--perm++ : ∀ {A : Set} (xs xs' ys ys' : List A)
+--       -> Permutation xs xs' -> Permutation ys ys' -> Permutation (xs ++ ys) (xs' ++ ys')
+--perm++ .[] .[] ys ys' (permutation []) yperm = yperm
+--perm++ (x ∷ xs) (x' ∷ xs') ys ys' (permutation (here pf)) yperm 
+--   with perm++ xs xs' ys ys' (permutation pf) yperm
+--... | permutation pf' = permutation (here pf')
+--perm++ (x ∷ xs) (x' ∷ xs') ys ys' (permutation (there-left pf)) yperm 
+--  = {!!}
+
+reverse-perm : ∀ {A : Set} (xs : List A) -> Permutation xs (reverse′ xs)
+reverse-perm [] = permutation []
+reverse-perm (x ∷ xs) =
+  permutation (perm-shunt (x ∷ xs) xs [ x ] (here (self-reverse-permutation++)))
+
+merge-perm++ : ∀ {A : Set} {xs ys zs : List A}
+             -> merge xs ys zs -> Permutation++ zs xs ys
+merge-perm++ [] = []
+merge-perm++ (left-∷ pf) = there-right (here (merge-perm++ pf))
+merge-perm++ (right-∷ pf) = here (merge-perm++ pf)
+
+merge-perm : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs -> Permutation zs (shunt xs ys)
+merge-perm {A} {xs} {ys} {zs} pf = permutation (perm-shunt zs xs ys (merge-perm++ pf))
+
+--merge-extract : ∀ {A : Set} -> ∀ {xs ys zs : List A} -> (merge xs ys zs) -> zs
+--merge-extract : ∀ {xs ys zs : List ℕ} -> (merge xs ys zs) -> zs
+--   List ℕ should be a sort, but it isn't
+--   when checking that the expression zs has type _1874merge-result thing = ?
+--merge-extract [] = []
+--merge-extract (left-∷ {x} {xs} {ys} {zs} m) = x ∷ merge-extract m
+--merge-extract (right-∷ {x} {xs} {ys} {zs} m) = x ∷ merge-extract m
+
+
+data merge-Any {A : Set} (P : A → Set) :  {xs ys zs : List A} -> merge xs ys zs → Set where
+  left-here : ∀ {x : A} {xs ys zs : List A} {m : merge xs ys zs} ->
+              P x → merge-Any P (left-∷ {A} {x} {xs} {ys} {zs} m)
+  left-there : ∀ {x : A} {xs ys zs : List A} {m : merge xs ys zs} ->
+              merge-Any P m → merge-Any P (left-∷ {A} {x} {xs} {ys} {zs} m)
+  right-here : ∀ {x : A} {xs ys zs : List A} {m : merge xs ys zs} ->
+              P x → merge-Any P (right-∷ {A} {x} {xs} {ys} {zs} m)
+  right-there : ∀ {x : A} {xs ys zs : List A} {m : merge xs ys zs} ->
+              merge-Any P m → merge-Any P (right-∷ {A} {x} {xs} {ys} {zs} m)
+
+
+
+
+merge≤-keep : ∀ (ms ns : List ℕ) (n : ℕ) -> (merge-Any (n ≡_ ) (Data.Product.Σ.proj₂ (merge≤ ms ns))) ⇔ (n ∈ ms ⊎ n ∈ ns)
+merge≤-keep ms ns n = record { to = {!!} ; from = {!!} }
+  where to : ∀ (ms ns : List ℕ) (z : ℕ) -> (merge-Any (n ≡_ ) (Data.Product.Σ.proj₂ (merge≤ ms ns))) -> (z ∈ ms ⊎ z ∈ ns)
+--        from : ∀ (ms ns : List ℕ) (z : ℕ) -> (z ∈ ms ⊎ z ∈ ns) -> (z ∈ merge≤ ms ns) 
+
+        to [] (n ∷ ns) z (right-here x) = inj₂ (here {!!})
+        to [] (n ∷ ns) z (right-there z∈zs) = {!!}
+        to (x ∷ ms) ns z z∈zs = {!!}
+--        to [] ns n n∈ns = inj₂ n∈ns
+--        to (m ∷ ms) [] n pf = inj₁ pf
+--        to (m ∷ ms) (n ∷ ns) z pf with compare m n
+--        to (m ∷ ms) (n ∷ ns) z (here z≡m) | less x = inj₁ (here z≡m)
+--        to (m ∷ ms) (n ∷ ns) z (there z∈merge) | less m≤n = {!!}
+--        ... | greater x = {!!}
+--        from ms ns n pf = {!!}
+
+
+--merge≤-keep : ∀ (ms ns : List ℕ) (n : ℕ) -> (n ∈ merge≤ ms ns) ⇔ (n ∈ ms ⊎ n ∈ ns)
+--merge≤-keep ms ns n = record { to = {!!} ; from = {!!} }
+--  where to : ∀ (ms ns : List ℕ) (z : ℕ) -> (z ∈ merge≤ ms ns) -> (z ∈ ms ⊎ z ∈ ns)
+--        from : ∀ (ms ns : List ℕ) (z : ℕ) -> (z ∈ ms ⊎ z ∈ ns) -> (z ∈ merge≤ ms ns) 
+--
+--        to [] ns n n∈ns = inj₂ n∈ns
+--        to (m ∷ ms) [] n pf = inj₁ pf
+--        to (m ∷ ms) (n ∷ ns) z pf with compare m n
+--        to (m ∷ ms) (n ∷ ns) z (here z≡m) | less x = inj₁ (here z≡m)
+--        to (m ∷ ms) (n ∷ ns) z (there z∈merge) | less m≤n = {!!}
+--        ... | greater x = {!!}
+--        from ms ns n pf = {!!}
+
+ordered-tail : ∀ {x : ℕ} {xs : List ℕ} -> Ordered (x ∷ xs) -> Ordered xs
+ordered-tail ordered-[x] = ordered-[]
+ordered-tail (ordered-∷ x ordered-[x]) = ordered-[x]
+ordered-tail (ordered-∷ x (ordered-∷ x₁ pf)) = ordered-∷ x₁ pf
+
+_ : Ordered [ 1 , 2 , 3 , 4 ]
+_ = ordered-∷ (s≤s z≤n) (ordered-∷ (s≤s (s≤s z≤n)) (ordered-∷ (s≤s (s≤s (s≤s z≤n))) ordered-[x]))
+
+data HeadMin : ∀ (xs ys zs : List ℕ) -> Set where
+  -- the head of zs, if present, is at most the minimum of the heads of xs and ys
+  head-min-left-[]  : ∀ {ys : List ℕ} -> Ordered ys -> HeadMin [] ys ys
+  head-min-right-[] : ∀ {xs : List ℕ} -> Ordered xs -> HeadMin xs [] xs
+  head-min-≤ : ∀ {x y : ℕ} {xs ys zs : List ℕ} -> 
+                  x ≤ y -> HeadMin xs (y ∷ ys) zs -> HeadMin (x ∷ xs) (y ∷ ys) (x ∷ zs)
+  head-min-> : ∀ {x y : ℕ} {xs ys zs : List ℕ} -> 
+                  y ≤ x -> HeadMin (x ∷ xs) ys zs -> HeadMin (x ∷ xs) (y ∷ ys) (y ∷ zs)
+
+--_ : HeadMin [ 1 , 3 ] [ 2 , 4 ] [ 1 , 2 , 3 , 4 ]
+--_ = head-min-≤ (s≤s z≤n) (head-min-> (s≤s (s≤s z≤n)) (head-min-≤ (s≤s (s≤s (s≤s z≤n))) head-min-left-[]))
+
+----  conjecture : ∀ {xs ys zs : List ℕ} -> HeadMin xs ys zs -> Ordered zs
+----  conjecture (head-min-left-[] pf) = pf
+----  conjecture (head-min-right-[] pf) = pf
+----  conjecture (head-min-≤ x (head-min-left-[] x₁)) = ordered-∷ x x₁
+----  conjecture (head-min-≤ {x} {y} x≤y (head-min-≤ {y'} {z} thing pf)) = ordered-∷ {!!} {!!}
+----  conjecture (head-min-≤ x (head-min-> y pf)) = {!!}
+----  conjecture (head-min-> x pf) = {!!}
+----  
+----  
+----  merge-ordered : (xs ys : List ℕ) -> Ordered xs -> Ordered ys -> Σ[ zs ∈ List ℕ ] (Ordered zs)
+----  merge-ordered [] ys oxs oys = ⟨ ys , oys ⟩
+----  merge-ordered xs [] oxs oys = ⟨ xs , oxs ⟩
+----  merge-ordered (x ∷ xs) (y ∷ ys) oxs oys 
+----    with x ≤? y 
+----       | merge-ordered xs (y ∷ ys) (ordered-tail oxs) oys 
+----       | merge-ordered (x ∷ xs) ys oxs (ordered-tail oys)
+----  ... | yes x≤y | ⟨ zs , ozs ⟩ | _ = ⟨ (x ∷ zs) , {!ordered-∷ ? ?!} ⟩
+----  ... | no  x>y | _ | thing = {!!}
 ```
 
 ## Standard Library
