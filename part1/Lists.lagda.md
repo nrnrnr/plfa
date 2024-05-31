@@ -1497,6 +1497,27 @@ merge-keep : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs
            -> All (_∈ zs) xs × All (_∈ zs) ys × All (λ z -> z ∈ xs ⊎ z ∈ ys) zs
 merge-keep m = ⟨ (merge-keep-xs m) , ⟨ (merge-keep-ys m) , (merge-only-xs-ys m) ⟩ ⟩
 
+merge-keep-xs' : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs -> 
+                 ∀ (x : A) -> (x ∈ xs -> x ∈ zs)
+merge-only-xs-ys' : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs ->
+                 ∀ (z : A) -> (z ∈ zs -> z ∈ xs ⊎ z ∈ ys)
+
+--merge-keep-ys : ∀ {A : Set} {xs ys zs : List A} -> merge xs ys zs -> All (_∈ zs) ys
+
+merge-keep-xs' (left-∷ merged) x (here ≡x) = here ≡x
+merge-keep-xs' (left-∷ merged) x (there x∈xs) = there (merge-keep-xs' merged x x∈xs)
+merge-keep-xs' (right-∷ merged) x x∈xs = there (merge-keep-xs' merged x x∈xs)
+
+merge-only-xs-ys' (left-∷ merged) z (here z≡x) = inj₁ (here z≡x)
+merge-only-xs-ys' (left-∷ merged) z (there z∈zs) with merge-only-xs-ys' merged z z∈zs
+... | inj₁ z∈xs = inj₁ (there z∈xs)
+... | inj₂ z∈ys = inj₂ z∈ys
+merge-only-xs-ys' (right-∷ merged) z (here z≡y) = inj₂ (here z≡y )
+merge-only-xs-ys' (right-∷ merged) z (there z∈zs) with merge-only-xs-ys' merged z z∈zs
+... | inj₁ z∈xs = inj₁ z∈xs
+... | inj₂ z∈ys = inj₂ (there z∈ys)
+
+
 
 data Permutation++ {A : Set} : (xs ys zs : List A) -> Set where
   -- xs is a permutation of ys ++ zs
