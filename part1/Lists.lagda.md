@@ -1423,18 +1423,6 @@ mergex (x ∷ xs) (y ∷ ys) with compare x y | mergex xs (y ∷ ys) | mergex (x
 ...     | less _ | zs | _ = x ∷ zs
 ...     | greater _ | _ | zs = y ∷ zs
 
-merge≤ : ∀ (xs ys : List ℕ) -> ∃[ zs ] (merge xs ys zs)
-merge≤ [] [] = ⟨ [] , [] ⟩
-merge≤ (x ∷ xs) [] with merge≤ xs [] 
-... | ⟨ zs , merge ⟩ = ⟨ (x ∷ zs) , (left-∷ merge) ⟩
-merge≤ [] (y ∷ ys) with merge≤ [] ys
-... | ⟨ zs , merge ⟩ = ⟨ (y ∷ zs) , (right-∷ merge) ⟩
-merge≤ (x ∷ xs) (y ∷ ys) with compare x y | merge≤ xs (y ∷ ys) | merge≤ (x ∷ xs) ys
-... | less _ | ⟨ zs , merge ⟩ | _ = ⟨ x ∷ zs , left-∷ merge ⟩
-... | greater _ | _ | ⟨ zs , merge ⟩ = ⟨ (y ∷ zs) , (right-∷ merge) ⟩
-
-
-
 
 
 data _implies_ {A : Set} : (P Q : A -> Set) -> Set where
@@ -1640,48 +1628,6 @@ merge-perm {A} {xs} {ys} {zs} pf = permutation (perm-shunt zs xs ys (merge-perm+
 --merge-extract (right-∷ {x} {xs} {ys} {zs} m) = x ∷ merge-extract m
 
 
-data merge-Any {A : Set} (P : A → Set) :  {xs ys zs : List A} -> merge xs ys zs → Set where
-  left-here : ∀ {x : A} {xs ys zs : List A} {m : merge xs ys zs} ->
-              P x → merge-Any P (left-∷ {A} {x} {xs} {ys} {zs} m)
-  left-there : ∀ {x : A} {xs ys zs : List A} {m : merge xs ys zs} ->
-              merge-Any P m → merge-Any P (left-∷ {A} {x} {xs} {ys} {zs} m)
-  right-here : ∀ {x : A} {xs ys zs : List A} {m : merge xs ys zs} ->
-              P x → merge-Any P (right-∷ {A} {x} {xs} {ys} {zs} m)
-  right-there : ∀ {x : A} {xs ys zs : List A} {m : merge xs ys zs} ->
-              merge-Any P m → merge-Any P (right-∷ {A} {x} {xs} {ys} {zs} m)
-
-
-
-
-merge≤-keep : ∀ (ms ns : List ℕ) (n : ℕ) -> (merge-Any (n ≡_ ) (Data.Product.Σ.proj₂ (merge≤ ms ns))) ⇔ (n ∈ ms ⊎ n ∈ ns)
-merge≤-keep ms ns n = record { to = {!!} ; from = {!!} }
-  where to : ∀ (ms ns : List ℕ) (z : ℕ) -> (merge-Any (n ≡_ ) (Data.Product.Σ.proj₂ (merge≤ ms ns))) -> (z ∈ ms ⊎ z ∈ ns)
---        from : ∀ (ms ns : List ℕ) (z : ℕ) -> (z ∈ ms ⊎ z ∈ ns) -> (z ∈ merge≤ ms ns) 
-
-        to [] (n ∷ ns) z (right-here x) = inj₂ (here {!!})
-        to [] (n ∷ ns) z (right-there z∈zs) = {!!}
-        to (x ∷ ms) ns z z∈zs = {!!}
---        to [] ns n n∈ns = inj₂ n∈ns
---        to (m ∷ ms) [] n pf = inj₁ pf
---        to (m ∷ ms) (n ∷ ns) z pf with compare m n
---        to (m ∷ ms) (n ∷ ns) z (here z≡m) | less x = inj₁ (here z≡m)
---        to (m ∷ ms) (n ∷ ns) z (there z∈merge) | less m≤n = {!!}
---        ... | greater x = {!!}
---        from ms ns n pf = {!!}
-
-
---merge≤-keep : ∀ (ms ns : List ℕ) (n : ℕ) -> (n ∈ merge≤ ms ns) ⇔ (n ∈ ms ⊎ n ∈ ns)
---merge≤-keep ms ns n = record { to = {!!} ; from = {!!} }
---  where to : ∀ (ms ns : List ℕ) (z : ℕ) -> (z ∈ merge≤ ms ns) -> (z ∈ ms ⊎ z ∈ ns)
---        from : ∀ (ms ns : List ℕ) (z : ℕ) -> (z ∈ ms ⊎ z ∈ ns) -> (z ∈ merge≤ ms ns) 
---
---        to [] ns n n∈ns = inj₂ n∈ns
---        to (m ∷ ms) [] n pf = inj₁ pf
---        to (m ∷ ms) (n ∷ ns) z pf with compare m n
---        to (m ∷ ms) (n ∷ ns) z (here z≡m) | less x = inj₁ (here z≡m)
---        to (m ∷ ms) (n ∷ ns) z (there z∈merge) | less m≤n = {!!}
---        ... | greater x = {!!}
---        from ms ns n pf = {!!}
 
 ordered-tail : ∀ {x : ℕ} {xs : List ℕ} -> Ordered (x ∷ xs) -> Ordered xs
 ordered-tail ordered-[x] = ordered-[]
@@ -1699,6 +1645,31 @@ data HeadMin : ∀ (xs ys zs : List ℕ) -> Set where
                   x ≤ y -> HeadMin xs (y ∷ ys) zs -> HeadMin (x ∷ xs) (y ∷ ys) (x ∷ zs)
   head-min-> : ∀ {x y : ℕ} {xs ys zs : List ℕ} -> 
                   y ≤ x -> HeadMin (x ∷ xs) ys zs -> HeadMin (x ∷ xs) (y ∷ ys) (y ∷ zs)
+
+
+
+merge≤ : ∀ (xs ys : List ℕ) -> ∃[ zs ] (merge xs ys zs)
+merge≤ [] [] = ⟨ [] , [] ⟩
+merge≤ (x ∷ xs) [] with merge≤ xs [] 
+... | ⟨ zs , merge ⟩ = ⟨ (x ∷ zs) , (left-∷ merge) ⟩
+merge≤ [] (y ∷ ys) with merge≤ [] ys
+... | ⟨ zs , merge ⟩ = ⟨ (y ∷ zs) , (right-∷ merge) ⟩
+merge≤ (x ∷ xs) (y ∷ ys) with compare x y | merge≤ xs (y ∷ ys) | merge≤ (x ∷ xs) ys
+... | less _ | ⟨ zs , merge ⟩ | _ = ⟨ x ∷ zs , left-∷ merge ⟩
+... | greater _ | _ | ⟨ zs , merge ⟩ = ⟨ (y ∷ zs) , (right-∷ merge) ⟩
+
+
+
+merge-sorted : ∀ (xs ys : List ℕ) (oxs : Ordered xs) (oys : Ordered ys) ->
+               Ordered (Data.Product.Σ.proj₁ (merge≤ xs ys))
+merge-sorted xs ys oxs oys with merge≤ xs ys
+merge-sorted xs ys oxs oys | ⟨ [] , [] ⟩ = ordered-[]
+merge-sorted xs ys oxs oys | ⟨ (z ∷ zs) , left-∷ {x} {xs'} {ys'} {zs'} merged ⟩ with merge-sorted xs' ys (ordered-tail oxs) oys
+merge-sorted (x ∷ _) ys oxs oys | ⟨ [ x ] , left-∷ merged ⟩ | _ = ordered-[x]
+merge-sorted (x ∷ _) ys oxs oys | ⟨ x ∷ z ∷ zs , left-∷ {x} {xs} {ys} {z ∷ zs} merged ⟩ | thing = ordered-∷ {!!} {!!}
+--   where small : 
+merge-sorted xs ys oxs oys | ⟨ (z ∷ zs) , right-∷ merged ⟩ = {!!}
+
 
 --_ : HeadMin [ 1 , 3 ] [ 2 , 4 ] [ 1 , 2 , 3 , 4 ]
 --_ = head-min-≤ (s≤s z≤n) (head-min-> (s≤s (s≤s z≤n)) (head-min-≤ (s≤s (s≤s (s≤s z≤n))) head-min-left-[]))
