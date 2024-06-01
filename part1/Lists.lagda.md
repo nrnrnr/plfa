@@ -1342,8 +1342,8 @@ data Ordered : (List ℕ -> Set) where
 
 open import Data.Nat.Properties using (≤-trans)
 
-Ordered-≤ : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) ⇔ (Ordered ns × All (λ y -> n ≤ y) ns)
-Ordered-≤ n ns = record { to = to n ns ; from = from n ns }
+Ordered-≤' : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) ⇔ (Ordered ns × All (λ y -> n ≤ y) ns)
+Ordered-≤' n ns = record { to = to n ns ; from = from n ns }
   where lemma1 : ∀ (n m : ℕ) (xs : List ℕ) -> n ≤ m -> All (_≤_ m) xs -> All (_≤_ n) xs
         lemma1 n m [] n≤m [] = []
         lemma1 n m (y ∷ ys) n≤m (m≤y ∷ pf) = n≤y ∷ lemma1 n m ys n≤m pf
@@ -1359,6 +1359,22 @@ Ordered-≤ n ns = record { to = to n ns ; from = from n ns }
         from n [ x ] ⟨ ordered-[x] , n≤x ∷ _ ⟩ = ordered-∷ n≤x ordered-[x]
         from n (x ∷ y ∷ ys) ⟨ ordered-∷ x≤y O-y-ys , n≤x ∷ n≤all ⟩ =
            ordered-∷ n≤x (ordered-∷ x≤y O-y-ys)
+        
+≤-congruence : ∀ {x y z : ℕ} -> (x ≤ y) -> (y ≡ z) -> (x ≤ z)
+≤-congruence pf refl = pf
+
+Ordered-≤ : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) ⇔ (Ordered ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y))
+Ordered-≤ n ns = record { to = to n ns ; from = from n ns }
+  where to : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) -> (Ordered ns × (∀ (y : ℕ) ->  (y ∈ ns) -> n ≤ y))
+        from : ∀ (n : ℕ) (ns : List ℕ) -> (Ordered ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y)) -> Ordered (n ∷ ns)
+
+        to n [] ordered-[x] = ⟨ ordered-[] , (λ y ()) ⟩
+        to n (m ∷ ms) (ordered-∷ n≤m pf) with to m ms pf
+        ... | ⟨ _ , m≤ms ⟩ = ⟨ pf , (λ y → λ{ (here x) → ≤-congruence n≤m (sym x)
+                                            ; (there x) → ≤-trans n≤m (m≤ms y x)}) ⟩
+        from n [] ⟨ O-ns , n≤ns ⟩ = ordered-[x]
+        from n (x ∷ xs) ⟨ ordered-x∷xs , n≤x∷xs ⟩ =
+          ordered-∷ (n≤x∷xs x (here refl)) ordered-x∷xs
         
 data Order (m n : ℕ) : Set where
   less : m ≤ n -> Order  m n
