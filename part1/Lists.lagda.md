@@ -1594,7 +1594,15 @@ perm-membership pf = record { to = to pf ; from = {!!} }
         ... | inj₁ x∈xs = inj₁ x∈xs
         ... | inj₂ x∈ys = inj₂ (there x∈ys)
 
-        from prem pf = {!!}
+        from [] (inj₁ ())
+        from [] (inj₂ ())
+        from (here perm) (inj₁ x∈xs) = there (from perm (inj₁ x∈xs))
+        from (here perm) (inj₂ (here x≡y)) = here x≡y
+        from (here perm) (inj₂ (there x∈ys)) = there (from perm (inj₂ x∈ys))
+        from (there-left perm) (inj₁ x∈xs) = from perm  (inj₁ (there x∈xs))
+        from (there-left perm) (inj₂ (here x≡y)) = from perm (inj₁ (here x≡y))
+        from (there-left perm) (inj₂ (there x∈ys)) = from perm (inj₂ x∈ys)
+        from (there-right perm) pf = {!!}
 
 placementx : ∀ {A : Set} (xs yls yrs : List A) (x : A)
           -> Permutation++ xs yls yrs
