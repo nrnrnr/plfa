@@ -1577,7 +1577,7 @@ shunt-perm xs (y ∷ ys) zs pf = there-right (shunt-perm xs ys (y ∷ zs) pf)
 perm-membership : ∀ {A : Set} {xs ys zs : List A}
                 -> Permutation++ zs xs ys
                 -> ∀ {x : A} -> (x ∈ zs) ⇔ (x ∈ xs ⊎ x ∈ ys)
-perm-membership pf = record { to = to pf ; from = {!!} }
+perm-membership pf = record { to = to pf ; from = from pf }
   where to : ∀ {A : Set } {x : A} {xs ys zs : List A} -> Permutation++ zs xs ys -> (x ∈ zs) -> (x ∈ xs ⊎ x ∈ ys)
         from : ∀ {A : Set} {x : A} {xs ys zs : List A} -> Permutation++ zs xs ys -> (x ∈ xs ⊎ x ∈ ys) -> (x ∈ zs)
         to (there-left perm) pf with to perm pf
@@ -1602,7 +1602,9 @@ perm-membership pf = record { to = to pf ; from = {!!} }
         from (there-left perm) (inj₁ x∈xs) = from perm  (inj₁ (there x∈xs))
         from (there-left perm) (inj₂ (here x≡y)) = from perm (inj₁ (here x≡y))
         from (there-left perm) (inj₂ (there x∈ys)) = from perm (inj₂ x∈ys)
-        from (there-right perm) pf = {!!}
+        from (there-right perm) (inj₁ (here x≡x)) = from perm (inj₂ (here x≡x))
+        from (there-right perm) (inj₁ (there x∈xs)) = from perm (inj₁ x∈xs)
+        from (there-right perm) (inj₂ x∈ys) = from perm (inj₂ (there x∈ys))
 
 placementx : ∀ {A : Set} (xs yls yrs : List A) (x : A)
           -> Permutation++ xs yls yrs
@@ -1886,6 +1888,12 @@ pswap (here p) = there-right (here (pswap p))
 pswap (there-left p) = there-right (pswap p)
 pswap (there-right p) = there-left (pswap p)
 
+perm-symmetric : ∀ {A : Set} {zs zs' : List A} -> Permutation++ zs [] zs' -> Permutation++ zs' [] zs
+perm-symmetric [] = []
+perm-symmetric (here p) = here (perm-symmetric p)
+perm-symmetric (there-left p) = {!!}
+
+
 tree-∷ : ∀ {A : Set} -> (x : A) -> {ns : List A} -> (STree ns) -> STree (x ∷ ns)
 tree-∷ x [] = [x] x
 tree-∷ x ([x] y) = fork ([x] x) ([x] y) (there-right (here (here [])))
@@ -1897,6 +1905,7 @@ tree-of-list (x ∷ xs) = tree-∷ x (tree-of-list xs)
 
 data _Sorted : List ℕ -> Set where
   sorted-as : ∀ {zs : List ℕ} -> ∀ (ns : List ℕ) -> Ordered ns -> ns ⋈ zs -> zs Sorted
+
 
 
 merge-erase : ∀ {xs ys zs : List ℕ} -> merged≤ xs ys zs -> merge xs ys zs
@@ -1935,15 +1944,6 @@ perm-cons : ∀ {A : Set} {z : A} {xs ys : List A}
           -> xs ⋈ ys -> (z ∷ xs) ⋈ (z ∷ ys)
 perm-cons (permutation x) = permutation (here x)
 
-
-
-perm-find-x : ∀ {A : Set} {xs ys zs zs' : List A} (x : A)
-          -> Permutation++ zs (x ∷ xs) ys
-          -> Permutation++ zs' xs ys
-perm-find-x x (here {zs} {x ∷ xs} {ys} {z} pf) = there-left {!!}
-perm-find-x x (there-left pf) = {!!}
-perm-find-x x (there-right pf) = {!!}
-
 perm-swap++ : ∀ {A : Set} {y1 y2 : A} {xs ys zs : List A}
           -> Permutation++ zs xs (y1 ∷ y2 ∷ ys)
           -> Permutation++ zs xs (y2 ∷ y1 ∷ ys)
@@ -1952,6 +1952,32 @@ perm-swap++ (there-left (here pf)) = here (there-left pf)
 perm-swap++ (there-left (there-left pf)) = {!!}
 perm-swap++ (there-left (there-right pf)) = perm-swap++ pf
 perm-swap++ (there-right pf) = {!!}
+
+--canonical-perm : ∀ {A : Set} {xs xs' : List A}
+--               -> xs ⋈ xs'
+--               -> Permutation++ xs [] xs'
+--canonical-perm (permutation []) = {!!}
+--canonical-perm (permutation (here pf)) = {!!}
+--canonical-perm (permutation (there-left pf)) = {!!}
+
+find-element-perm : ∀ {A : Set} {x : A} (xs : List A) -> (x ∈ xs)
+                  -> ∃[ zs ] xs ⋈ (x ∷ zs)
+find-element-perm (x ∷ xs) (here refl) = ⟨ xs , self-permutation (x ∷ xs) ⟩
+find-element-perm { x = y } (x ∷ xs) (there y∈xs) with find-element-perm xs y∈xs
+... | ⟨ xs' , perm' ⟩ = ⟨ x ∷ xs' , {!!} ⟩
+
+
+
+perm-find-x : ∀ {A : Set} {xs ys zs : List A} (x : A)
+          -> Permutation++ zs (x ∷ xs) ys
+          -> ∃[ zs' ] Permutation++ zs' xs ys
+perm-find-x {zs = zs} x perm 
+        with (_⇔_.from (perm-membership (there-left perm)) (inj₂ (here refl)))
+... | x∈zs with find-element-perm zs x∈zs
+... | ⟨ zs' , permutation perm' ⟩ = ⟨ zs' , {!!} ⟩
+--perm-find-x x (there-left pf) = {!!}
+--perm-find-x x (there-right pf) = {!!}
+
 
 
 perm-swap : ∀ {A : Set} {y1 y2 : A} {xs ys : List A}
