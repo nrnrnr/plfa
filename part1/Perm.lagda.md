@@ -1218,12 +1218,12 @@ self' : ∀ {A : Set} (xs : List A) -> xs <> xs
 self' [] = []
 self' (x ∷ xs) = insert here (self' xs)
 
-self : ∀ {A : Set} {xs : List A} -> xs <> xs
-self {xs = xs} = self' xs
+refl-<> : ∀ {A : Set} {xs : List A} -> xs <> xs
+refl-<> {xs = xs} = self' xs
 
 insertion : ∀ {A : Set} {x : A} {xs zs : List A} -> x ⊳ xs ⋈ zs -> (x ∷ xs) <> zs
-insertion here = insert here self
-insertion (there pf) = insert (there pf) self
+insertion here = insert here refl-<>
+insertion (there pf) = insert (there pf) refl-<>
 
 insert-swap : ∀ {A : Set} {x y : A} {as bs cs : List A}
             -> x ⊳ as ⋈ bs
@@ -1241,268 +1241,313 @@ find-<> : ∀ {A : Set} {x : A} {xs ys zs : List A}
        -> (x ∷ xs) <> ys
        -> ∃[ zs ] x ⊳ zs ⋈ ys
 find-<> (insert {ys = ys} pf _) = ⟨ ys , pf ⟩
+ 
+data same-length {A B : Set} : (xs : List A) (ys : List B) -> Set where
+  [] : same-length [] []
+  same-∷ : ∀ {x : A} {y : B} {xs : List A} {ys : List B}
+         -> same-length xs ys -> same-length (x ∷ xs) (y ∷ ys)
 
-find2 : ∀ {A : Set} {x : A} {xs ys zs ws : List A}
+refl-same : ∀ {A : Set} {xs : List A} -> same-length xs xs
+refl-same {A} {[]} = []
+refl-same {A} {x ∷ xs} = same-∷ refl-same
+
+trans-same : ∀ {A : Set} {xs ys zs : List A} -> same-length xs ys -> same-length ys zs -> same-length xs zs
+trans-same [] [] = []
+trans-same (same-∷ p1) (same-∷ p2) = same-∷ (trans-same p1 p2)
+
+insert-same : ∀ {A : Set} {xs ys : List A} {x : A}
+            -> x ⊳ xs ⋈ ys -> same-length (x ∷ xs) ys
+insert-same here = refl-same
+insert-same (there pf) with insert-same pf
+... | (same-∷ pf) =  (same-∷ (same-∷ pf))
+
+<>-same : ∀ {A : Set} {xs ys : List A} -> (xs <> ys) -> same-length xs ys
+<>-same [] = []
+<>-same (insert x pf) with insert-same x | <>-same pf
+... | same-∷ pf' | pf'' = same-∷ (trans-same pf'' pf')
+
+
+----find2 : ∀ {A : Set} {x : A} {xs ys zs ws : List A}
+----      -> x ⊳ xs ⋈ ys
+----      -> ys <> zs
+----      -> ∃[ ws ] x ⊳ ws ⋈ zs
+----find2 here (insert {ys = ys} a>as==bs perm) = ⟨ ys , a>as==bs ⟩
+----find2 {A} (there {x = x} {y = y} {ys = ys} {zs} insertion)
+----          (insert {x = a} {ys = as} {zs = bs} a>as==bs cs<>as)
+----  = {!!} 
+---- where lemma : zs <> bs
+----       lemma = {!insert ? cs<>as!}
+
+find2-weak : ∀ {A : Set} {x : A} {xs ys zs : List A}
       -> x ⊳ xs ⋈ ys
       -> ys <> zs
-      -> ∃[ ws ] x ⊳ ws ⋈ zs
-find2 here perm = find-<> perm
-find2 (there {x} {y} {ys} {zs} insertion) (insert {a} {as} {bs} {cs} insertion' zs<>bs) 
-   with find2 insertion zs<>bs
-... | ⟨ es , y>es==bs ⟩ with insert-swap y>es==bs insertion'
-... | ⟨ vs , ⟨ x>es==vs , y>vs==cs ⟩ ⟩ = ⟨ vs , y>vs==cs ⟩
-
-trans-<> : ∀ {A : Set} {ms ns ps : List A} -> ms <> ns -> ns <> ps -> ms <> ps
-trans-<> [] [] = []
-trans-<> (insert {x} {xs} {ys} {zs} x>ys=as xs<>ys)
-         (insert {a} {as} {bs} {cs} a>bs=cs as<>bs) =
-    {!!} -- insert {x = x} {!!} {!!}
-  where l1 : zs <> bs
-        l1 = {!!}
-
-_ : [ 1 , 2 ] ⋈ [ 2 , 1 ]
-_ = permutation (there-left (here (there-right (here []))))
-
-_ : [ 1 , 2 , 3 ] ⋈ [ 3 , 1 , 2 ]
-_ = permutation (there-left (here (here (there-right (here [])))))
-
-self-permutation : ∀ {A : Set} (xs : List A) -> xs ⋈ xs
-self-permutation [] = permutation []
-self-permutation (x ∷ xs) with self-permutation xs
-... | permutation pxs = permutation (here pxs)
-
-self-permutation++ : ∀ {A : Set} {xs : List A} -> Permutation++ xs [] xs
-self-permutation++ {A} {[]} = []
-self-permutation++ {A} {x ∷ xs} = here self-permutation++
-
-shunt-self-permutation++ : ∀ {A : Set} {xs ys : List A} -> Permutation++ (shunt xs ys) xs ys
-shunt-self-permutation++ {A} {[]} {ys} = self-permutation++
-shunt-self-permutation++ {A} {x ∷ xs} {ys} = there-right shunt-self-permutation++
-
-perm-shunt : ∀ {A : Set} (xs ys zs : List A)
-           -> Permutation++ xs ys zs -> Permutation++ xs [] (shunt ys zs)
-perm-shunt xs [] zs pf = pf
-perm-shunt xs (x ∷ ys) zs pf = perm-shunt xs ys (x ∷ zs) (there-left pf)
-
-perm-shunt' : ∀ {A : Set} {xs ys zs : List A}
-           -> Permutation++ xs ys zs -> Permutation++ xs [] (shunt ys zs)
-perm-shunt' {A} {xs} {[]} {zs} pf = pf
-perm-shunt' {A} {xs} {(x ∷ ys)} {zs} pf = perm-shunt' {A} {xs} {ys} {(x ∷ zs)} (there-left pf)
-
-shunt-perm : ∀ {A : Set} (xs ys zs : List A)
-           -> Permutation++ xs [] (shunt ys zs)
-           -> Permutation++ xs ys zs
-shunt-perm xs [] zs pf = pf
-shunt-perm xs (y ∷ ys) zs pf = there-right (shunt-perm xs ys (y ∷ zs) pf)
-
-perm-membership : ∀ {A : Set} {xs ys zs : List A}
-                -> Permutation++ zs xs ys
-                -> ∀ {x : A} -> (x ∈ zs) ⇔ (x ∈ xs ⊎ x ∈ ys)
-perm-membership pf = record { to = to pf ; from = from pf }
-  where to : ∀ {A : Set } {x : A} {xs ys zs : List A} -> Permutation++ zs xs ys -> (x ∈ zs) -> (x ∈ xs ⊎ x ∈ ys)
-        from : ∀ {A : Set} {x : A} {xs ys zs : List A} -> Permutation++ zs xs ys -> (x ∈ xs ⊎ x ∈ ys) -> (x ∈ zs)
-        to (there-left perm) pf with to perm pf
-        ... | inj₁ (here refl) = inj₂ (here refl)
-        ... | inj₁ (there x) = inj₁ x
-        ... | inj₂ x∈zs = inj₂ (there x∈zs)
-        to (there-right perm) pf with to perm pf
-        ... | inj₁ (here refl) = inj₁ (there (here refl))
-        ... | inj₁ (there x∈xs) = inj₁ (there (there x∈xs))
-        ... | inj₂ (here x≡y) = inj₁ (here x≡y)
-        ... | inj₂ (there x∈ys) = inj₂ x∈ys
-        to (here perm) (here x≡z) = inj₂ (here x≡z)
-        to (here perm) (there x∈zs) with to perm x∈zs
-        ... | inj₁ x∈xs = inj₁ x∈xs
-        ... | inj₂ x∈ys = inj₂ (there x∈ys)
-
-        from [] (inj₁ ())
-        from [] (inj₂ ())
-        from (here perm) (inj₁ x∈xs) = there (from perm (inj₁ x∈xs))
-        from (here perm) (inj₂ (here x≡y)) = here x≡y
-        from (here perm) (inj₂ (there x∈ys)) = there (from perm (inj₂ x∈ys))
-        from (there-left perm) (inj₁ x∈xs) = from perm  (inj₁ (there x∈xs))
-        from (there-left perm) (inj₂ (here x≡y)) = from perm (inj₁ (here x≡y))
-        from (there-left perm) (inj₂ (there x∈ys)) = from perm (inj₂ x∈ys)
-        from (there-right perm) (inj₁ (here x≡x)) = from perm (inj₂ (here x≡x))
-        from (there-right perm) (inj₁ (there x∈xs)) = from perm (inj₁ x∈xs)
-        from (there-right perm) (inj₂ x∈ys) = from perm (inj₂ (there x∈ys))
-
-placementx : ∀ {A : Set} (xs yls yrs : List A) (x : A)
-          -> Permutation++ xs yls yrs
-          -> Permutation++ (x ∷ xs) yls (x ∷ yrs)
-placementx xs yls yrs x pf = here pf
-
-self-reverse-permutation++ : ∀ {A : Set} {xs : List A} -> Permutation++ xs xs []
-self-reverse-permutation++ {A} {[]} = []
-self-reverse-permutation++ {A} {x ∷ xs} = there-right (here (self-reverse-permutation++))
-
---placement++ : ∀ {A : Set} (xs ls rs : List A) (x : A)
---> Permutation++ xs ls rs -> Permutation++ (x ∷ xs) ls (x ∷ rs)
+      -> ∃[ as ] ∃[ bs ] x ⊳ as ⋈ bs × bs <> zs
+find2-weak here (insert {ys = ys} {zs = zs} a>as==bs perm) = ⟨ ys , ⟨ zs , ⟨ a>as==bs , refl-<> ⟩ ⟩ ⟩
+find2-weak (there {x = x} {y = z} insertion) (insert {x = y} a>as==bs cs<>as)
+  with find2-weak insertion cs<>as
+... | ⟨ ms ,     ⟨ ns ,     ⟨ y>ms==ns ,       ns<>as ⟩ ⟩ ⟩ = 
+      ⟨ x ∷ ms , ⟨ x ∷ ns , ⟨ there y>ms==ns , insert a>as==bs ns<>as ⟩ ⟩ ⟩
 
 
 
+--trans-<> : ∀ {A : Set} {ms ns ps : List A} -> ms <> ns -> ns <> ps -> ms <> ps
+--trans-<> [] [] = []
+--trans-<> {A} (insert {x} {xs} {ys} {zs} x>ys=as xs<>ys)
+--             (insert {a} {as} {bs} {cs} a>bs=cs as<>bs) 
+--  with find2 -- {A} {x} {ys} {as} 
+--             x>ys=as (insert a>bs=cs as<>bs)
+--... | ⟨ es , x>es=cs ⟩ = insert {!!} xs<>ys
+--
 
-placement : ∀ {A : Set} (x : A) (xs ys : List A) 
-          -> (x ∷ shunt xs ys) ⋈ (shunt xs (x ∷ ys))
-placement x xs ys =
-  permutation (perm-shunt (x ∷ shunt xs ys) xs (x ∷ ys) (here shunt-self-permutation++))
-
-
-reverse-perm : ∀ {A : Set} (xs : List A) -> xs ⋈ reverse′ xs
-reverse-perm [] = permutation []
-reverse-perm (x ∷ xs) =
-  permutation (perm-shunt (x ∷ xs) xs [ x ] (here (self-reverse-permutation++)))
-
-
-data STree {A : Set} : (zs : List A) -> Set where
-  [] : STree []
-  [x] : ∀ (x : A) -> STree ([ x ])
-  fork : ∀ {xs ys ns : List A} -> STree xs -> STree ys -> Permutation++ ns xs ys -> STree ns
-
-
-pswap : ∀ {A : Set} {xs ys zs : List A} -> Permutation++ xs ys zs -> Permutation++ xs zs ys
-pswap [] = []
-pswap (here p) = there-right (here (pswap p))
-pswap (there-left p) = there-right (pswap p)
-pswap (there-right p) = there-left (pswap p)
-
-perm-symmetric : ∀ {A : Set} {zs zs' : List A} -> Permutation++ zs [] zs' -> Permutation++ zs' [] zs
-perm-symmetric [] = []
-perm-symmetric (here p) = here (perm-symmetric p)
-perm-symmetric (there-left p) = {!!}
-
-
-tree-∷ : ∀ {A : Set} -> (x : A) -> {ns : List A} -> (STree ns) -> STree (x ∷ ns)
-tree-∷ x [] = [x] x
-tree-∷ x ([x] y) = fork ([x] x) ([x] y) (there-right (here (here [])))
-tree-∷ x (fork xs ys p) = fork (tree-∷ x ys) xs (pswap (here p))
-
-tree-of-list : ∀ {A : Set} -> (xs : List A) -> STree xs
-tree-of-list [] = []
-tree-of-list (x ∷ xs) = tree-∷ x (tree-of-list xs)
-
-empty-perm-left' : ∀ {A : Set} (y : A) (ys zs : List A) -> ¬ (Permutation++ [] (y ∷ ys) zs)
-empty-perm-right' : ∀ {A : Set} (y : A) (ys zs : List A) -> ¬ (Permutation++ [] zs (y ∷ ys))
-
-empty-perm-left' y ys (z ∷ zs) (there-left pf) = empty-perm-left' z (y ∷ ys) zs pf
-empty-perm-left' y ys (zs) (there-right pf) = empty-perm-right' y zs ys pf
-empty-perm-right' y ys zs (there-left pf) = empty-perm-left' y zs ys pf
-empty-perm-right' y ys (z ∷ zs) (there-right pf) = empty-perm-right' z (y ∷ ys) zs pf
-
-empty-perm-left : ∀ {A : Set} {y : A} {ys zs : List A} -> ¬ (Permutation++ [] (y ∷ ys) zs)
-empty-perm-left {A} {y} {ys} {zs} = empty-perm-left' y ys zs
-
-
---perm-lemma-5 : ∀ {A : Set} {xs ys zs xs' : List A}
---             -> Permutation++ xs ⋈ xs'
---             -> zs ⋈ (shunt xs ys)
---             -> zs ⋈ (shunt xs' ys)
-
-perm-find-z : ∀ {A : Set} {xs ys zs : List A} (z : A)
-          -> Permutation++ (z ∷ zs) xs ys
-          -> ∃[ xs' ] ∃[ ys' ] Permutation++ zs xs' ys'
-perm-find-z _ (here {zs} {xs} {ys} {x} pf) = ⟨ xs , ⟨ ys , pf ⟩ ⟩
-perm-find-z z (there-left pf) = perm-find-z z pf
-perm-find-z z (there-right pf) = perm-find-z z pf
-
-
-perm-cons : ∀ {A : Set} {z : A} {xs ys : List A}
-          -> xs ⋈ ys -> (z ∷ xs) ⋈ (z ∷ ys)
-perm-cons (permutation x) = permutation (here x)
-
-perm-swap++ : ∀ {A : Set} {y1 y2 : A} {xs ys zs : List A}
-          -> Permutation++ zs xs (y1 ∷ y2 ∷ ys)
-          -> Permutation++ zs xs (y2 ∷ y1 ∷ ys)
-perm-swap++ (here pf) = there-left (here (there-right pf))
-perm-swap++ (there-left (here pf)) = here (there-left pf)
-perm-swap++ (there-left (there-left pf)) = {!!}
-perm-swap++ (there-left (there-right pf)) = perm-swap++ pf
-perm-swap++ (there-right pf) = {!!}
-
---canonical-perm : ∀ {A : Set} {xs xs' : List A}
---               -> xs ⋈ xs'
---               -> Permutation++ xs [] xs'
---canonical-perm (permutation []) = {!!}
---canonical-perm (permutation (here pf)) = {!!}
---canonical-perm (permutation (there-left pf)) = {!!}
-
-find-element-perm : ∀ {A : Set} {x : A} (xs : List A) -> (x ∈ xs)
-                  -> ∃[ zs ] xs ⋈ (x ∷ zs)
-find-element-perm (x ∷ xs) (here refl) = ⟨ xs , self-permutation (x ∷ xs) ⟩
-find-element-perm { x = y } (x ∷ xs) (there y∈xs) with find-element-perm xs y∈xs
-... | ⟨ xs' , perm' ⟩ = ⟨ x ∷ xs' , {!!} ⟩
-
-
-
-perm-find-x : ∀ {A : Set} {xs ys zs : List A} (x : A)
-          -> Permutation++ zs (x ∷ xs) ys
-          -> ∃[ zs' ] Permutation++ zs' xs ys
-perm-find-x {zs = zs} x perm 
-        with (_⇔_.from (perm-membership (there-left perm)) (inj₂ (here refl)))
-... | x∈zs with find-element-perm zs x∈zs
-... | ⟨ zs' , permutation perm' ⟩ = ⟨ zs' , {!!} ⟩
---perm-find-x x (there-left pf) = {!!}
---perm-find-x x (there-right pf) = {!!}
-
-
-
-perm-swap : ∀ {A : Set} {y1 y2 : A} {xs ys : List A}
-          -> xs ⋈ (y1 ∷ y2 ∷ ys)
-          -> xs ⋈ (y2 ∷ y1 ∷ ys)
-perm-swap (permutation (here pf)) = permutation (there-left (here (there-right pf)))
-perm-swap {ys = []} (permutation (there-left (here pf))) = permutation (here (there-left pf))
-perm-swap {ys = []} (permutation (there-left (there-left (there-right pf)))) =
-  perm-swap (permutation (there-left pf))
-perm-swap {ys = []} (permutation (there-left (there-right pf))) = perm-swap (permutation pf)
-perm-swap {ys = z ∷ zs} (permutation (there-left {xs} {[]} {(z1 ∷ z2 ∷ zs)} {y} pf)) =
-   permutation {!!}
---... | thing = permutation {!!}
-
-perm-find : ∀ {A : Set} {as : List A}
-          -> ∀ {a : A} -> a ∈ as -> ∃[ as' ] as ⋈ (a ∷ as')
-perm-find (here {x} {xs} refl) = ⟨ xs , self-permutation (x ∷ xs)  ⟩
-perm-find {A} {as} {a} (there {x} {xs} pf) with perm-find pf
-... | ⟨ ys , pys ⟩ = ⟨ (x ∷ ys) , perm-swap (perm-cons pys) ⟩
-
-open import Data.Empty using (⊥-elim)
-
-perm-lemma-4 : ∀ {A : Set} {xs ys zs xs' : List A}
-             -> xs ⋈ xs'
-             -> zs ⋈ (shunt xs ys)
-             -> zs ⋈ (shunt xs' ys)
---perm-lemma-4 xs⋈xs' zs⋈Rxs++ys = {!!}
-perm-lemma-4 (permutation xs⋈xs') (permutation zs⋈Rxs++ys) = permutation {!!}
-
-perm-lemma-3 : ∀ {A : Set} {xs ys zs xs' : List A}
-             -> xs ⋈ xs'
-             -> Permutation++ zs xs ys
-             -> Permutation++ zs xs' ys
-perm-lemma-3 (permutation []) [] = []
-perm-lemma-3 (permutation (there-left pf)) [] = ⊥-elim (empty-perm-left pf)
-perm-lemma-3 xs⋈xs' (here zxy) = here (perm-lemma-3 xs⋈xs' zxy)
-perm-lemma-3 xs⋈xs' (there-left {xs = yyy} {y = y} zxy) 
-  = there-left {!!}
-perm-lemma-3 (permutation x) (there-right zxy) = {!!}
-
-perm-lemma-2 : ∀ {xs ys zs xs' ys' zs' : List ℕ}
-             -> xs ⋈ xs'
-             -> ys ⋈ ys'
-             -> Permutation++ zs' xs' ys'
-             -> Permutation++ zs xs ys
-             -> zs ⋈ zs'
---perm-lemma-2 xs⋈xs' ys⋈ys' zxy' zxy = {!!}
-perm-lemma-2 xs⋈xs' ys⋈ys' zxy' zxy = {!!}             
-
-
-perm-lemma-1 : ∀ {xs ys zs xs' ys' zs' : List ℕ}
-             -> xs ⋈ xs'
-             -> ys ⋈ ys'
-             -> Permutation++ zs' xs' ys'
-             -> zs ⋈ zs'
-perm-lemma-1  = {!!}
-
-
-
+----  with find2 x>ys=as (insert a>bs=cs as<>bs)
+----... | ⟨ es , x>es=cs ⟩ = insert x>es=cs {!!}
+----    insert {x = x} {!!} {!!}
+----  where l1 : zs <> bs
+----        l1 = {!!}
+----
+----_ : [ 1 , 2 ] ⋈ [ 2 , 1 ]
+----_ = permutation (there-left (here (there-right (here []))))
+----
+----_ : [ 1 , 2 , 3 ] ⋈ [ 3 , 1 , 2 ]
+----_ = permutation (there-left (here (here (there-right (here [])))))
+----
+----self-permutation : ∀ {A : Set} (xs : List A) -> xs ⋈ xs
+----self-permutation [] = permutation []
+----self-permutation (x ∷ xs) with self-permutation xs
+----... | permutation pxs = permutation (here pxs)
+----
+----self-permutation++ : ∀ {A : Set} {xs : List A} -> Permutation++ xs [] xs
+----self-permutation++ {A} {[]} = []
+----self-permutation++ {A} {x ∷ xs} = here self-permutation++
+----
+----shunt-self-permutation++ : ∀ {A : Set} {xs ys : List A} -> Permutation++ (shunt xs ys) xs ys
+----shunt-self-permutation++ {A} {[]} {ys} = self-permutation++
+----shunt-self-permutation++ {A} {x ∷ xs} {ys} = there-right shunt-self-permutation++
+----
+----perm-shunt : ∀ {A : Set} (xs ys zs : List A)
+----           -> Permutation++ xs ys zs -> Permutation++ xs [] (shunt ys zs)
+----perm-shunt xs [] zs pf = pf
+----perm-shunt xs (x ∷ ys) zs pf = perm-shunt xs ys (x ∷ zs) (there-left pf)
+----
+----perm-shunt' : ∀ {A : Set} {xs ys zs : List A}
+----           -> Permutation++ xs ys zs -> Permutation++ xs [] (shunt ys zs)
+----perm-shunt' {A} {xs} {[]} {zs} pf = pf
+----perm-shunt' {A} {xs} {(x ∷ ys)} {zs} pf = perm-shunt' {A} {xs} {ys} {(x ∷ zs)} (there-left pf)
+----
+----shunt-perm : ∀ {A : Set} (xs ys zs : List A)
+----           -> Permutation++ xs [] (shunt ys zs)
+----           -> Permutation++ xs ys zs
+----shunt-perm xs [] zs pf = pf
+----shunt-perm xs (y ∷ ys) zs pf = there-right (shunt-perm xs ys (y ∷ zs) pf)
+----
+----perm-membership : ∀ {A : Set} {xs ys zs : List A}
+----                -> Permutation++ zs xs ys
+----                -> ∀ {x : A} -> (x ∈ zs) ⇔ (x ∈ xs ⊎ x ∈ ys)
+----perm-membership pf = record { to = to pf ; from = from pf }
+----  where to : ∀ {A : Set } {x : A} {xs ys zs : List A} -> Permutation++ zs xs ys -> (x ∈ zs) -> (x ∈ xs ⊎ x ∈ ys)
+----        from : ∀ {A : Set} {x : A} {xs ys zs : List A} -> Permutation++ zs xs ys -> (x ∈ xs ⊎ x ∈ ys) -> (x ∈ zs)
+----        to (there-left perm) pf with to perm pf
+----        ... | inj₁ (here refl) = inj₂ (here refl)
+----        ... | inj₁ (there x) = inj₁ x
+----        ... | inj₂ x∈zs = inj₂ (there x∈zs)
+----        to (there-right perm) pf with to perm pf
+----        ... | inj₁ (here refl) = inj₁ (there (here refl))
+----        ... | inj₁ (there x∈xs) = inj₁ (there (there x∈xs))
+----        ... | inj₂ (here x≡y) = inj₁ (here x≡y)
+----        ... | inj₂ (there x∈ys) = inj₂ x∈ys
+----        to (here perm) (here x≡z) = inj₂ (here x≡z)
+----        to (here perm) (there x∈zs) with to perm x∈zs
+----        ... | inj₁ x∈xs = inj₁ x∈xs
+----        ... | inj₂ x∈ys = inj₂ (there x∈ys)
+----
+----        from [] (inj₁ ())
+----        from [] (inj₂ ())
+----        from (here perm) (inj₁ x∈xs) = there (from perm (inj₁ x∈xs))
+----        from (here perm) (inj₂ (here x≡y)) = here x≡y
+----        from (here perm) (inj₂ (there x∈ys)) = there (from perm (inj₂ x∈ys))
+----        from (there-left perm) (inj₁ x∈xs) = from perm  (inj₁ (there x∈xs))
+----        from (there-left perm) (inj₂ (here x≡y)) = from perm (inj₁ (here x≡y))
+----        from (there-left perm) (inj₂ (there x∈ys)) = from perm (inj₂ x∈ys)
+----        from (there-right perm) (inj₁ (here x≡x)) = from perm (inj₂ (here x≡x))
+----        from (there-right perm) (inj₁ (there x∈xs)) = from perm (inj₁ x∈xs)
+----        from (there-right perm) (inj₂ x∈ys) = from perm (inj₂ (there x∈ys))
+----
+----placementx : ∀ {A : Set} (xs yls yrs : List A) (x : A)
+----          -> Permutation++ xs yls yrs
+----          -> Permutation++ (x ∷ xs) yls (x ∷ yrs)
+----placementx xs yls yrs x pf = here pf
+----
+----self-reverse-permutation++ : ∀ {A : Set} {xs : List A} -> Permutation++ xs xs []
+----self-reverse-permutation++ {A} {[]} = []
+----self-reverse-permutation++ {A} {x ∷ xs} = there-right (here (self-reverse-permutation++))
+----
+------placement++ : ∀ {A : Set} (xs ls rs : List A) (x : A)
+------> Permutation++ xs ls rs -> Permutation++ (x ∷ xs) ls (x ∷ rs)
+----
+----
+----
+----
+----placement : ∀ {A : Set} (x : A) (xs ys : List A) 
+----          -> (x ∷ shunt xs ys) ⋈ (shunt xs (x ∷ ys))
+----placement x xs ys =
+----  permutation (perm-shunt (x ∷ shunt xs ys) xs (x ∷ ys) (here shunt-self-permutation++))
+----
+----
+----reverse-perm : ∀ {A : Set} (xs : List A) -> xs ⋈ reverse′ xs
+----reverse-perm [] = permutation []
+----reverse-perm (x ∷ xs) =
+----  permutation (perm-shunt (x ∷ xs) xs [ x ] (here (self-reverse-permutation++)))
+----
+----
+----data STree {A : Set} : (zs : List A) -> Set where
+----  [] : STree []
+----  [x] : ∀ (x : A) -> STree ([ x ])
+----  fork : ∀ {xs ys ns : List A} -> STree xs -> STree ys -> Permutation++ ns xs ys -> STree ns
+----
+----
+----pswap : ∀ {A : Set} {xs ys zs : List A} -> Permutation++ xs ys zs -> Permutation++ xs zs ys
+----pswap [] = []
+----pswap (here p) = there-right (here (pswap p))
+----pswap (there-left p) = there-right (pswap p)
+----pswap (there-right p) = there-left (pswap p)
+----
+----perm-symmetric : ∀ {A : Set} {zs zs' : List A} -> Permutation++ zs [] zs' -> Permutation++ zs' [] zs
+----perm-symmetric [] = []
+----perm-symmetric (here p) = here (perm-symmetric p)
+----perm-symmetric (there-left p) = {!!}
+----
+----
+----tree-∷ : ∀ {A : Set} -> (x : A) -> {ns : List A} -> (STree ns) -> STree (x ∷ ns)
+----tree-∷ x [] = [x] x
+----tree-∷ x ([x] y) = fork ([x] x) ([x] y) (there-right (here (here [])))
+----tree-∷ x (fork xs ys p) = fork (tree-∷ x ys) xs (pswap (here p))
+----
+----tree-of-list : ∀ {A : Set} -> (xs : List A) -> STree xs
+----tree-of-list [] = []
+----tree-of-list (x ∷ xs) = tree-∷ x (tree-of-list xs)
+----
+----empty-perm-left' : ∀ {A : Set} (y : A) (ys zs : List A) -> ¬ (Permutation++ [] (y ∷ ys) zs)
+----empty-perm-right' : ∀ {A : Set} (y : A) (ys zs : List A) -> ¬ (Permutation++ [] zs (y ∷ ys))
+----
+----empty-perm-left' y ys (z ∷ zs) (there-left pf) = empty-perm-left' z (y ∷ ys) zs pf
+----empty-perm-left' y ys (zs) (there-right pf) = empty-perm-right' y zs ys pf
+----empty-perm-right' y ys zs (there-left pf) = empty-perm-left' y zs ys pf
+----empty-perm-right' y ys (z ∷ zs) (there-right pf) = empty-perm-right' z (y ∷ ys) zs pf
+----
+----empty-perm-left : ∀ {A : Set} {y : A} {ys zs : List A} -> ¬ (Permutation++ [] (y ∷ ys) zs)
+----empty-perm-left {A} {y} {ys} {zs} = empty-perm-left' y ys zs
+----
+----
+------perm-lemma-5 : ∀ {A : Set} {xs ys zs xs' : List A}
+------             -> Permutation++ xs ⋈ xs'
+------             -> zs ⋈ (shunt xs ys)
+------             -> zs ⋈ (shunt xs' ys)
+----
+----perm-find-z : ∀ {A : Set} {xs ys zs : List A} (z : A)
+----          -> Permutation++ (z ∷ zs) xs ys
+----          -> ∃[ xs' ] ∃[ ys' ] Permutation++ zs xs' ys'
+----perm-find-z _ (here {zs} {xs} {ys} {x} pf) = ⟨ xs , ⟨ ys , pf ⟩ ⟩
+----perm-find-z z (there-left pf) = perm-find-z z pf
+----perm-find-z z (there-right pf) = perm-find-z z pf
+----
+----
+----perm-cons : ∀ {A : Set} {z : A} {xs ys : List A}
+----          -> xs ⋈ ys -> (z ∷ xs) ⋈ (z ∷ ys)
+----perm-cons (permutation x) = permutation (here x)
+----
+----perm-swap++ : ∀ {A : Set} {y1 y2 : A} {xs ys zs : List A}
+----          -> Permutation++ zs xs (y1 ∷ y2 ∷ ys)
+----          -> Permutation++ zs xs (y2 ∷ y1 ∷ ys)
+----perm-swap++ (here pf) = there-left (here (there-right pf))
+----perm-swap++ (there-left (here pf)) = here (there-left pf)
+----perm-swap++ (there-left (there-left pf)) = {!!}
+----perm-swap++ (there-left (there-right pf)) = perm-swap++ pf
+----perm-swap++ (there-right pf) = {!!}
+----
+------canonical-perm : ∀ {A : Set} {xs xs' : List A}
+------               -> xs ⋈ xs'
+------               -> Permutation++ xs [] xs'
+------canonical-perm (permutation []) = {!!}
+------canonical-perm (permutation (here pf)) = {!!}
+------canonical-perm (permutation (there-left pf)) = {!!}
+----
+----find-element-perm : ∀ {A : Set} {x : A} (xs : List A) -> (x ∈ xs)
+----                  -> ∃[ zs ] xs ⋈ (x ∷ zs)
+----find-element-perm (x ∷ xs) (here refl) = ⟨ xs , self-permutation (x ∷ xs) ⟩
+----find-element-perm { x = y } (x ∷ xs) (there y∈xs) with find-element-perm xs y∈xs
+----... | ⟨ xs' , perm' ⟩ = ⟨ x ∷ xs' , {!!} ⟩
+----
+----
+----
+----perm-find-x : ∀ {A : Set} {xs ys zs : List A} (x : A)
+----          -> Permutation++ zs (x ∷ xs) ys
+----          -> ∃[ zs' ] Permutation++ zs' xs ys
+----perm-find-x {zs = zs} x perm 
+----        with (_⇔_.from (perm-membership (there-left perm)) (inj₂ (here refl)))
+----... | x∈zs with find-element-perm zs x∈zs
+----... | ⟨ zs' , permutation perm' ⟩ = ⟨ zs' , {!!} ⟩
+------perm-find-x x (there-left pf) = {!!}
+------perm-find-x x (there-right pf) = {!!}
+----
+----
+----
+----perm-swap : ∀ {A : Set} {y1 y2 : A} {xs ys : List A}
+----          -> xs ⋈ (y1 ∷ y2 ∷ ys)
+----          -> xs ⋈ (y2 ∷ y1 ∷ ys)
+----perm-swap (permutation (here pf)) = permutation (there-left (here (there-right pf)))
+----perm-swap {ys = []} (permutation (there-left (here pf))) = permutation (here (there-left pf))
+----perm-swap {ys = []} (permutation (there-left (there-left (there-right pf)))) =
+----  perm-swap (permutation (there-left pf))
+----perm-swap {ys = []} (permutation (there-left (there-right pf))) = perm-swap (permutation pf)
+----perm-swap {ys = z ∷ zs} (permutation (there-left {xs} {[]} {(z1 ∷ z2 ∷ zs)} {y} pf)) =
+----   permutation {!!}
+------... | thing = permutation {!!}
+----
+----perm-find : ∀ {A : Set} {as : List A}
+----          -> ∀ {a : A} -> a ∈ as -> ∃[ as' ] as ⋈ (a ∷ as')
+----perm-find (here {x} {xs} refl) = ⟨ xs , self-permutation (x ∷ xs)  ⟩
+----perm-find {A} {as} {a} (there {x} {xs} pf) with perm-find pf
+----... | ⟨ ys , pys ⟩ = ⟨ (x ∷ ys) , perm-swap (perm-cons pys) ⟩
+----
+----open import Data.Empty using (⊥-elim)
+----
+----perm-lemma-4 : ∀ {A : Set} {xs ys zs xs' : List A}
+----             -> xs ⋈ xs'
+----             -> zs ⋈ (shunt xs ys)
+----             -> zs ⋈ (shunt xs' ys)
+------perm-lemma-4 xs⋈xs' zs⋈Rxs++ys = {!!}
+----perm-lemma-4 (permutation xs⋈xs') (permutation zs⋈Rxs++ys) = permutation {!!}
+----
+----perm-lemma-3 : ∀ {A : Set} {xs ys zs xs' : List A}
+----             -> xs ⋈ xs'
+----             -> Permutation++ zs xs ys
+----             -> Permutation++ zs xs' ys
+----perm-lemma-3 (permutation []) [] = []
+----perm-lemma-3 (permutation (there-left pf)) [] = ⊥-elim (empty-perm-left pf)
+----perm-lemma-3 xs⋈xs' (here zxy) = here (perm-lemma-3 xs⋈xs' zxy)
+----perm-lemma-3 xs⋈xs' (there-left {xs = yyy} {y = y} zxy) 
+----  = there-left {!!}
+----perm-lemma-3 (permutation x) (there-right zxy) = {!!}
+----
+----perm-lemma-2 : ∀ {xs ys zs xs' ys' zs' : List ℕ}
+----             -> xs ⋈ xs'
+----             -> ys ⋈ ys'
+----             -> Permutation++ zs' xs' ys'
+----             -> Permutation++ zs xs ys
+----             -> zs ⋈ zs'
+------perm-lemma-2 xs⋈xs' ys⋈ys' zxy' zxy = {!!}
+----perm-lemma-2 xs⋈xs' ys⋈ys' zxy' zxy = {!!}             
+----
+----
+----perm-lemma-1 : ∀ {xs ys zs xs' ys' zs' : List ℕ}
+----             -> xs ⋈ xs'
+----             -> ys ⋈ ys'
+----             -> Permutation++ zs' xs' ys'
+----             -> zs ⋈ zs'
+----perm-lemma-1  = {!!}
+----
+----
+----
 
 
 ```
