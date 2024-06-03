@@ -1539,6 +1539,20 @@ infix 4 _⋈_
 data _⋈_ {A : Set} : (xs ys : List A) -> Set where
   permutation : ∀ {xs zs : List A} -> Permutation++ xs [] zs -> xs ⋈ zs
 
+data _⊳_⋈_ {A : Set} : (x : A) (xs ys : List A) -> Set where
+  -- ys is formed by inserting x somewhere into xs
+  here : ∀ {x : A} {xs ys : List A} -> x ⊳ xs ⋈ (x ∷ xs)
+  there : ∀ {x y : A} {xs ys zs : List A} -> y ⊳ ys ⋈ zs -> y ⊳ (x ∷ xs) ⋈ (x ∷ zs)
+
+infix 4 _<>_
+data _<>_ {A : Set} : (xs ys : List A) -> Set where
+  [] : [] <> []
+  insert : ∀ {x : A} {xs ys zs : List A} -> xs <> ys -> x ⊳ xs ⋈ zs -> x ∷ xs <> zs
+
+trans-<> : ∀ {A : Set} {xs ys zs : List A} -> xs <> ys -> ys <> zs -> xs <> zs
+trans-<> [] p2 = {!!}
+trans-<> (insert p1 x) p2 = {!!}
+
 _ : [ 1 , 2 ] ⋈ [ 2 , 1 ]
 _ = permutation (there-left (here (there-right (here []))))
 
