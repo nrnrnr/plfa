@@ -1368,9 +1368,9 @@ perm-trans p1 p2 = {!!}
 
 trans-<> : ∀ {A : Set} {xs ys zs : List A} -> xs <> ys -> ys <> zs -> xs <> zs
 trans-<> [] [] = []
-trans-<> {A} (insert {x'} {xs'} {pre-ys} {ys} x'>pre-ys=ys xs'<>pre-ys) ys<>zs
-   with find2-strong x'>pre-ys=ys ys<>zs
-... | ⟨ as , ⟨ x>as==bs , xs<>as ⟩ ⟩ = insert x>as==bs (trans-<> xs'<>pre-ys xs<>as)
+trans-<> {A} (insert x⊳as≡ys xs<>as) ys<>zs
+   with find2-strong x⊳as≡ys ys<>zs
+... | ⟨ cs , ⟨ x⊳cs≡zs , as<>cs ⟩ ⟩ = insert x⊳cs≡zs (trans-<> xs<>as as<>cs)
 
     -- ys = y' :: ys'
     -- first extract x' from ys
