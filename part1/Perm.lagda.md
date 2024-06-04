@@ -1204,15 +1204,15 @@ infix 4 _⋈_
 data _⋈_ {A : Set} : (xs ys : List A) -> Set where
   permutation : ∀ {xs zs : List A} -> Permutation++ xs [] zs -> xs ⋈ zs
 
-data _⊳_⋈_ {A : Set} : (x : A) (xs ys : List A) -> Set where
+data _⊳_≡_ {A : Set} : (x : A) (xs ys : List A) -> Set where
   -- ys is formed by inserting x somewhere into xs
-  here : ∀ {x : A} {xs : List A} -> x ⊳ xs ⋈ (x ∷ xs)
-  there : ∀ {x y : A} {ys zs : List A} -> y ⊳ ys ⋈ zs -> y ⊳ (x ∷ ys) ⋈ (x ∷ zs)
+  here : ∀ {x : A} {xs : List A} -> x ⊳ xs ≡ (x ∷ xs)
+  there : ∀ {x y : A} {ys zs : List A} -> y ⊳ ys ≡ zs -> y ⊳ (x ∷ ys) ≡ (x ∷ zs)
 
 infix 4 _<>_
 data _<>_ {A : Set} : (xs ys : List A) -> Set where
   [] : [] <> []
-  insert : ∀ {x : A} {xs ys zs : List A} -> x ⊳ ys ⋈ zs -> xs <> ys -> x ∷ xs <> zs
+  insert : ∀ {x : A} {xs ys zs : List A} -> x ⊳ ys ≡ zs -> xs <> ys -> x ∷ xs <> zs
 
 self' : ∀ {A : Set} (xs : List A) -> xs <> xs
 self' [] = []
@@ -1221,14 +1221,14 @@ self' (x ∷ xs) = insert here (self' xs)
 refl-<> : ∀ {A : Set} {xs : List A} -> xs <> xs
 refl-<> {xs = xs} = self' xs
 
-insertion : ∀ {A : Set} {x : A} {xs zs : List A} -> x ⊳ xs ⋈ zs -> (x ∷ xs) <> zs
+insertion : ∀ {A : Set} {x : A} {xs zs : List A} -> x ⊳ xs ≡ zs -> (x ∷ xs) <> zs
 insertion here = insert here refl-<>
 insertion (there pf) = insert (there pf) refl-<>
 
 insert-swap : ∀ {A : Set} {x y : A} {as bs cs : List A}
-            -> x ⊳ as ⋈ bs
-            -> y ⊳ bs ⋈ cs
-            -> ∃[ es ] y ⊳ as ⋈ es × x ⊳ es ⋈ cs
+            -> x ⊳ as ≡ bs
+            -> y ⊳ bs ≡ cs
+            -> ∃[ es ] y ⊳ as ≡ es × x ⊳ es ≡ cs
 insert-swap {as = as} {bs = bs} {cs = cs} (here {x = a}) (here {x = b}) =
    ⟨ (b ∷ as) , ⟨ here , there here ⟩ ⟩
 insert-swap (here) (there {zs = zs} p2) = ⟨ zs , ⟨ p2 , here ⟩ ⟩
@@ -1239,7 +1239,7 @@ insert-swap (there { x = head } { y = inserted }p1) (there p2) with insert-swap 
 
 find-<> : ∀ {A : Set} {x : A} {xs ys zs : List A}
        -> (x ∷ xs) <> ys
-       -> ∃[ zs ] x ⊳ zs ⋈ ys
+       -> ∃[ zs ] x ⊳ zs ≡ ys
 find-<> (insert {ys = ys} pf _) = ⟨ ys , pf ⟩
  
 data same-length {A B : Set} : (xs : List A) (ys : List B) -> Set where
@@ -1256,7 +1256,7 @@ trans-same [] [] = []
 trans-same (same-∷ p1) (same-∷ p2) = same-∷ (trans-same p1 p2)
 
 insert-same : ∀ {A : Set} {xs ys : List A} {x : A}
-            -> x ⊳ xs ⋈ ys -> same-length (x ∷ xs) ys
+            -> x ⊳ xs ≡ ys -> same-length (x ∷ xs) ys
 insert-same here = refl-same
 insert-same (there pf) with insert-same pf
 ... | (same-∷ pf) =  (same-∷ (same-∷ pf))
@@ -1267,37 +1267,127 @@ insert-same (there pf) with insert-same pf
 ... | same-∷ pf' | pf'' = same-∷ (trans-same pf'' pf')
 
 
-----find2 : ∀ {A : Set} {x : A} {xs ys zs ws : List A}
-----      -> x ⊳ xs ⋈ ys
-----      -> ys <> zs
-----      -> ∃[ ws ] x ⊳ ws ⋈ zs
-----find2 here (insert {ys = ys} a>as==bs perm) = ⟨ ys , a>as==bs ⟩
-----find2 {A} (there {x = x} {y = y} {ys = ys} {zs} insertion)
-----          (insert {x = a} {ys = as} {zs = bs} a>as==bs cs<>as)
-----  = {!!} 
----- where lemma : zs <> bs
-----       lemma = {!insert ? cs<>as!}
+reverse-insert : ∀ {A : Set} {x : A} {xs : List A}
+               -> (x ∈ xs) -> ∃[ ys ] x ⊳ ys ≡ xs
+reverse-insert (here {xs = ys} refl) = ⟨ ys , here ⟩
+reverse-insert (there {x = y} x∈xs) with reverse-insert x∈xs
+... | ⟨ ys , x>xs=ys ⟩ = ⟨ y ∷ ys , there x>xs=ys ⟩
 
-find2-weak : ∀ {A : Set} {x : A} {xs ys zs : List A}
-      -> x ⊳ xs ⋈ ys
+find2-weak-wrong : ∀ {A : Set} {x : A} {xs ys zs : List A}
+      -> x ⊳ xs ≡ ys
       -> ys <> zs
-      -> ∃[ as ] ∃[ bs ] x ⊳ as ⋈ bs × bs <> zs
-find2-weak here (insert {ys = ys} {zs = zs} a>as==bs perm) = ⟨ ys , ⟨ zs , ⟨ a>as==bs , refl-<> ⟩ ⟩ ⟩
-find2-weak (there {x = x} {y = z} insertion) (insert {x = y} a>as==bs cs<>as)
-  with find2-weak insertion cs<>as
+      -> ∃[ as ] ∃[ bs ] x ⊳ as ≡ bs × bs <> zs
+find2-weak-wrong here (insert {ys = ys} {zs = zs} a>as==bs perm) = ⟨ ys , ⟨ zs , ⟨ a>as==bs , refl-<> ⟩ ⟩ ⟩
+find2-weak-wrong (there {x = x} {y = z} insertion) (insert {x = y} a>as==bs cs<>as)
+  with find2-weak-wrong insertion cs<>as
 ... | ⟨ ms ,     ⟨ ns ,     ⟨ y>ms==ns ,       ns<>as ⟩ ⟩ ⟩ = 
       ⟨ x ∷ ms , ⟨ x ∷ ns , ⟨ there y>ms==ns , insert a>as==bs ns<>as ⟩ ⟩ ⟩
 
+find2-weak : ∀ {A : Set} {x : A} {xs ys zs : List A}
+      -> x ⊳ xs ≡ ys
+      -> ys <> zs
+      -> ∃[ as ] ∃[ bs ] x ⊳ as ≡ bs × xs <> as
+find2-weak here (insert {ys = ys} {zs = zs} a>as==bs perm) = ⟨ ys , ⟨ zs , ⟨ a>as==bs , perm ⟩ ⟩ ⟩
+find2-weak (there {x = x} {y = z} insertion) (insert {x = y} a>as==bs cs<>as)
+  with find2-weak insertion cs<>as
+... | ⟨ ms ,     ⟨ ns ,     ⟨ y>ms==ns ,       ns<>as ⟩ ⟩ ⟩ = 
+      ⟨ x ∷ ms , ⟨ x ∷ ns , ⟨ there y>ms==ns , insert here ns<>as ⟩ ⟩ ⟩
+
+find2-strong : ∀ {A : Set} {x : A} {xs ys zs : List A}
+      -> x ⊳ xs ≡ ys
+      -> ys <> zs
+      -> ∃[ as ] x ⊳ as ≡ zs × xs <> as
+find2-strong here (insert {ys = ys} {zs = zs} a>as==bs perm) = ⟨ ys , ⟨ a>as==bs , perm ⟩ ⟩
+find2-strong {A} {x = x} {xs = y' ∷ xs'} {ys = y' ∷ ys'} {zs = y' ∷ zs'}
+             (there insertion) (insert here ys'<>as) 
+    with find2-strong insertion ys'<>as
+... | ⟨ bs , ⟨ z>bs=ys , ys<>bs ⟩ ⟩ = ⟨ y' ∷ bs , ⟨ there z>bs=ys ,  insert here ys<>bs   ⟩ ⟩
+find2-strong {A} {x = x} {xs = y' ∷ xs'} {ys = y' ∷ ys'} {zs = z' ∷ zs'}
+             (there insertion) (insert {ys = z' ∷ cs} (there y'>cs==zs') ys'<>z'::cs) 
+        -- x is somewhere inside ys'
+        -- therefore x is different from y'
+        -- but x might be the same as z'!
+        -- ys' -- xs' == x
+        -- zs' -- cs  == y'
+        --   NEED cs - x or xs' - y
+        --   x>answer=cs?
+        -- (z' :: xs) -- bs = x
+        ------   f2-strong ? (something<>cs)
+   with find2-strong insertion ys'<>z'::cs
+... | ⟨ cs , ⟨ here , xs'<>cs ⟩ ⟩ = ⟨ zs' , ⟨ here , (insert y'>cs==zs' xs'<>cs) ⟩ ⟩
+...         | ⟨ (z' ∷ ds) , ⟨ there x>ds=cs , xs'<>z'∷ds ⟩ ⟩ with insert-swap x>ds=cs y'>cs==zs'
+...                | ⟨ es , ⟨ y'>ds=es , x>es=zs' ⟩ ⟩ = 
+                         ⟨ (z' ∷ es) , ⟨ (there x>es=zs') , (insert (there y'>ds=es) xs'<>z'∷ds) ⟩ ⟩
 
 
---trans-<> : ∀ {A : Set} {ms ns ps : List A} -> ms <> ns -> ns <> ps -> ms <> ps
---trans-<> [] [] = []
---trans-<> {A} (insert {x} {xs} {ys} {zs} x>ys=as xs<>ys)
---             (insert {a} {as} {bs} {cs} a>bs=cs as<>bs) 
---  with find2 -- {A} {x} {ys} {as} 
---             x>ys=as (insert a>bs=cs as<>bs)
---... | ⟨ es , x>es=cs ⟩ = insert {!!} xs<>ys
+
+lemma-<> : ∀ {A : Set} {x : A} {xs ys zs : List A}
+         -> (x ∷ xs) <> ys
+         -> ∃[ bs ] x ⊳ bs ≡ ys × xs <> bs
+lemma-<> (insert {ys = pre-ys} x>pre-ys=ys xs<>pre-ys) = ⟨ pre-ys , ⟨ x>pre-ys=ys , xs<>pre-ys ⟩ ⟩
+
+lemma-step : ∀ {A : Set} {x' : A} {bs ys zs : List A}
+           -> x' ⊳ bs ≡ ys
+           -> ys <> zs
+           -> ∃[ cs ] x' ⊳ cs ≡ zs × bs <> cs
+lemma-step ins perm = {!!}
+
+lemma-step' : ∀ {A : Set} {x' : A} {bs ys zs : List A}
+           -> x' ⊳ bs ≡ ys
+           -> zs <> ys
+           -> ∃[ cs ] x' ⊳ cs ≡ zs × bs <> cs
+lemma-step' ins perm = {!!}
+
+lemma-pull :  ∀ {A : Set} {x : A} {ys pre-ys zs : List A}
+           -> x ⊳ pre-ys ≡ ys
+           -> ys <> zs
+           -> x ∷ pre-ys <> zs
+lemma-pull = {!!}
+
+lemma-more :  ∀ {A : Set} {x : A} {xs ys pre-ys zs : List A}
+           -> x ⊳ pre-ys ≡ ys
+           -> xs <> pre-ys
+           -> x ∷ xs <> ys
+lemma-more x>pys=ys xs<>pys = insert x>pys=ys xs<>pys
+
+lemma-unwind : ∀ {A : Set} {x : A} {ys pre-ys zs pre-zs : List A}
+             -> x ⊳ pre-ys ≡ ys
+             -> x ⊳ pre-zs ≡ zs
+             -> ys <> zs
+             -> pre-ys <> pre-zs
+lemma-unwind x>ys x>zs (insert {x = z} aaa pre-ys<>pre-zs') = {!!}
+
+
+perm-trans : ∀ {A : Set} {xs ys zs : List A} → xs <> ys → ys <> zs → xs <> zs
+perm-trans {ys = ys} (insert ix xy) p2 with find2-strong ix p2
+... | ⟨ as , ⟨ x>as==bs , xs<>as ⟩ ⟩ = insert x>as==bs (perm-trans xy xs<>as)
+perm-trans p1 p2 = {!!}
+
+--perm-trans (ins xy ix iy) p2 | proj₁ , proj₂ , proj₃ = ins (perm-trans xy proj₃) ix proj₂
+
+
+trans-<> : ∀ {A : Set} {xs ys zs : List A} -> xs <> ys -> ys <> zs -> xs <> zs
+trans-<> [] [] = []
+trans-<> {A} (insert {x'} {xs'} {pre-ys} {ys} x'>pre-ys=ys xs'<>pre-ys) ys<>zs
+   with find2-strong x'>pre-ys=ys ys<>zs
+... | ⟨ as , ⟨ x>as==bs , xs<>as ⟩ ⟩ = insert x>as==bs (trans-<> xs'<>pre-ys xs<>as)
+
+    -- ys = y' :: ys'
+    -- first extract x' from ys
+----  with find2-weak x'>pre-ys=ys (insert y'>pre-zs=zs ys'<>pre-zs) 
+--... | ⟨ bs , ⟨ ws , ⟨ x'>bs=ws , pre-ys<>bs ⟩ ⟩ ⟩ 
+--           with reverse-insert x'∈zs
+--                               where x'∈zs : x' ∈ zs
+--                                     x'∈zs = {!!}
+--... | ⟨ pre-zs , x>pre-zs=zs ⟩ = {!!}
+--  -- with lemma-step' x'>bs=ws (insert x'>bs=ws pre-ys<>bs)
+--  -- ... | ⟨ cs , ⟨ x'>cs=bs , bs<>cs ⟩ ⟩ = {!!}
 --
+--... | ⟨ cs , x'>cs=zs ⟩ = insert x'>cs=zs (trans-<> xs'<>pre-ys {!pre-ys<>bs!})
+--...             | thing = {!!}
+--  with find2-weak x>ys=as (insert a>bs=cs as<>bs)
+--... | ⟨ es , ⟨ f ∷ fs , ⟨ x>es==fs , fs<>cs ⟩ ⟩ ⟩ = trans-<> {!!} fs<>cs
+
 
 ----  with find2 x>ys=as (insert a>bs=cs as<>bs)
 ----... | ⟨ es , x>es=cs ⟩ = insert x>es=cs {!!}
