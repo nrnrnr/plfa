@@ -1376,10 +1376,21 @@ grow-swap* (swap pf* pf) = swap (there pf*) (grow-swap* pf)
 ⊳-swapped* here = refl
 ⊳-swapped* (there pf) = swap here (grow-swap* (⊳-swapped* pf))
 
+trans-swapped* :  ∀ {A : Set} {xs ys zs : List A} -> xs swapped*-is ys -> ys swapped*-is zs -> xs swapped*-is zs
+trans-swapped* refl pf = pf
+trans-swapped* (swap one many) rest = swap one (trans-swapped* many rest)
+
 insert-swapped* : ∀ {A : Set} {x : A} {xs ys zs : List A} -> x ⊳ ys ≡ zs -> xs swapped*-is ys -> x ∷ xs swapped*-is zs
 insert-swapped* here perm = grow-swap* perm
-insert-swapped* (there ins) many = {!!}
-
+insert-swapped* {A} {x = x} {xs = as} {ys = b ∷ bs} {zs = c ∷ cs} (there ins) many = trans-swapped* l3 (trans-swapped* (swap l4 (grow-swap* l1)) refl)
+  where l1 : x ∷ bs swapped*-is cs
+        l2 : as swapped*-is b ∷ bs
+        l3 : x ∷ as swapped*-is x ∷ b ∷ bs 
+        l4 : x ∷ b ∷ bs swapped-is b ∷ x ∷ bs 
+        l1 = ⊳-swapped* ins
+        l2 = many
+        l3 = grow-swap* many
+        l4 = here
 
 
 ----
