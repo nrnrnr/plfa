@@ -1294,6 +1294,94 @@ trans-<> [] [] = []
 trans-<> {A} (insert x⊳as≡ys xs<>as) ys<>zs with pullout-x x⊳as≡ys ys<>zs
 ... | ⟨ cs , ⟨ x⊳cs≡zs , as<>cs ⟩ ⟩ = insert x⊳cs≡zs (trans-<> xs<>as as<>cs)
 
+perm-head-swap : ∀ {A : Set} {x₁ x₂ : A} {xs ys zs : List A}
+               -> Permutation++ zs ys (x₁ ∷ x₂ ∷ xs)
+               -> Permutation++ zs ys (x₂ ∷ x₁ ∷ xs)
+perm-head-swap (here (here p)) = there-left (here (there-right (here p))) 
+perm-head-swap (here (there-left p)) = there-left (here p)
+perm-head-swap (here (there-right p)) = there-left (here (there-right (there-right p)))
+perm-head-swap (there-left (here p)) = here (there-left p)
+perm-head-swap (there-left (there-left p)) = {!!}
+perm-head-swap (there-left (there-right p)) = perm-head-swap p
+perm-head-swap (there-right p) = {!!}
+
+<>-head-swap : ∀ {A : Set} {x₁ x₂ : A} {xs ys : List A}
+               -> xs <> ys
+               -> (x₁ ∷ x₂ ∷ xs) <> (x₂ ∷ x₁ ∷ ys)
+<>-head-swap xs<>ys = insert (there here) (insert here xs<>ys)
+
+lemma-ins : ∀ {A : Set} {x : A} {xs ys ys' zs : List A}
+          -> x ⊳ ys ≡ ys'
+          -> Permutation++ zs xs ys
+          -> Permutation++ (x ∷ zs) xs ys'
+lemma-ins here perm = here perm
+lemma-ins (there ins) perm with lemma-ins ins (there-right perm)
+... | perm' = there-left perm'
+
+legacy-insert : ∀ {A : Set} {x : A} {xs ys zs : List A}
+              -> x ⊳ ys ≡ zs -> xs ⋈ ys -> x ∷ xs ⋈ zs
+legacy-insert ins (permutation p) = permutation (lemma-ins ins p)
+
+<>→⋈ : ∀ {A : Set} {xs ys : List A} -> xs <> ys -> xs ⋈ ys
+<>→⋈ [] = permutation []
+<>→⋈ (insert ins xs<>ys) = legacy-insert ins (<>→⋈ xs<>ys)
+
+shunt-⊳ : ∀ {A : Set} {x : A} {ys zs : List A} (xs : List A)
+        -> x ⊳ ys ≡ zs
+        -> x ⊳ shunt xs ys ≡ shunt xs zs
+shunt-⊳ [] pf = pf
+shunt-⊳ (y ∷ ys) pf = shunt-⊳ ys (there pf)
+
+
+
+reverse-lemma : ∀ {A : Set} {xs ys zs : List A}
+              -> Permutation++ zs xs ys -> zs <> shunt xs ys
+reverse-lemma [] = []
+reverse-lemma {xs = []} (here p) with reverse-lemma p
+... | p' = insert here p'
+reverse-lemma {xs = x ∷ xs} (here p) with reverse-lemma p
+... | p' = insert {!!} p' -- insert {! ?!} {!!}
+reverse-lemma (there-left p) = {!!}
+reverse-lemma (there-right p) = {!!}
+
+⋈→<> : ∀ {A : Set} {xs ys : List A} -> xs ⋈ ys -> xs <> ys
+⋈→<> (permutation []) = []
+⋈→<> (permutation (here p)) = insert here (⋈→<> (permutation p))
+⋈→<> (permutation (there-left p)) with 1
+... | thing = {!!}
+
+infix 4 _swapped-is_
+data _swapped-is_ {A : Set} : List A -> List A -> Set where
+  here : ∀ {x y : A} {zs : List A} -> x ∷ y ∷ zs swapped-is y ∷ x ∷ zs
+  there : ∀ {z : A} {xs ys : List A} -> xs swapped-is ys -> z ∷ xs swapped-is z ∷ ys
+
+infix 4 _swapped*-is_
+data _swapped*-is_ {A : Set} : List A -> List A -> Set where
+  refl : ∀ {xs : List A} -> xs swapped*-is xs
+  swap : ∀ {xs ys zs : List A} -> (xs swapped-is ys) -> ys swapped*-is zs -> xs swapped*-is zs
+
+swapped→<> : ∀ {A : Set} {xs ys : List A} (pf : xs swapped-is ys) -> xs <> ys
+swapped→<> here = insert (there here) refl-<>
+swapped→<> (there pf) = insert here (swapped→<> pf)
+
+swapped*→<> : ∀ {A : Set} {xs ys : List A} (pf : xs swapped*-is ys) -> xs <> ys
+swapped*→<> refl = refl-<>
+swapped*→<> (swap one many) = trans-<> (swapped→<> one) (swapped*→<> many)
+
+grow-swap* : ∀ {A : Set} {z : A} {xs ys : List A} -> xs swapped*-is ys -> z ∷ xs swapped*-is z ∷ ys
+grow-swap* refl = refl
+grow-swap* (swap pf* pf) = swap (there pf*) (grow-swap* pf)
+
+⊳-swapped* : ∀ {A : Set} {x : A} {ys zs : List A} -> x ⊳ ys ≡ zs -> x ∷ ys swapped*-is zs
+⊳-swapped* here = refl
+⊳-swapped* (there pf) = swap here (grow-swap* (⊳-swapped* pf))
+
+insert-swapped* : ∀ {A : Set} {x : A} {xs ys zs : List A} -> x ⊳ ys ≡ zs -> xs swapped*-is ys -> x ∷ xs swapped*-is zs
+insert-swapped* here perm = grow-swap* perm
+insert-swapped* (there ins) many = {!!}
+
+
+
 ----
 ----_ : [ 1 , 2 ] ⋈ [ 2 , 1 ]
 ----_ = permutation (there-left (here (there-right (here []))))
