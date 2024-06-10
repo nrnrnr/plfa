@@ -1332,23 +1332,18 @@ shunt-⊳ : ∀ {A : Set} {x : A} {ys zs : List A} (xs : List A)
 shunt-⊳ [] pf = pf
 shunt-⊳ (y ∷ ys) pf = shunt-⊳ ys (there pf)
 
-
-
 reverse-lemma : ∀ {A : Set} {xs ys zs : List A}
               -> Permutation++ zs xs ys -> zs <> shunt xs ys
 reverse-lemma [] = []
 reverse-lemma {xs = []} (here p) with reverse-lemma p
 ... | p' = insert here p'
 reverse-lemma {xs = x ∷ xs} (here p) with reverse-lemma p
-... | p' = insert {!!} p' -- insert {! ?!} {!!}
+... | p' = insert (shunt-⊳ xs (there {_} {_} {_} {_} here)) p'
 reverse-lemma (there-left p) = {!!}
 reverse-lemma (there-right p) = {!!}
 
 ⋈→<> : ∀ {A : Set} {xs ys : List A} -> xs ⋈ ys -> xs <> ys
-⋈→<> (permutation []) = []
-⋈→<> (permutation (here p)) = insert here (⋈→<> (permutation p))
-⋈→<> (permutation (there-left p)) with 1
-... | thing = {!!}
+⋈→<> (permutation p) = reverse-lemma p
 
 infix 4 _swapped-is_
 data _swapped-is_ {A : Set} : List A -> List A -> Set where
@@ -1394,6 +1389,11 @@ insert-swapped* {A} {x = x} {xs = as} {ys = b ∷ bs} {zs = c ∷ cs}
         l2 = many
         l3 = grow-swap* many
         l4 = here
+
+<>→swapped* : ∀ {A : Set} {xs ys : List A} -> (xs <> ys) -> (xs swapped*-is ys)
+<>→swapped* [] = refl
+<>→swapped* (insert ins pf) = insert-swapped* ins (<>→swapped* pf)
+
 
 
 ----
