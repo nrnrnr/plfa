@@ -1294,21 +1294,17 @@ trans-<> [] [] = []
 trans-<> {A} (insert x⊳as≡ys xs<>as) ys<>zs with pullout-x x⊳as≡ys ys<>zs
 ... | ⟨ cs , ⟨ x⊳cs≡zs , as<>cs ⟩ ⟩ = insert x⊳cs≡zs (trans-<> xs<>as as<>cs)
 
-perm-head-swap : ∀ {A : Set} {x₁ x₂ : A} {xs ys zs : List A}
-               -> Permutation++ zs ys (x₁ ∷ x₂ ∷ xs)
-               -> Permutation++ zs ys (x₂ ∷ x₁ ∷ xs)
-perm-head-swap (here (here p)) = there-left (here (there-right (here p))) 
-perm-head-swap (here (there-left p)) = there-left (here p)
-perm-head-swap (here (there-right p)) = there-left (here (there-right (there-right p)))
-perm-head-swap (there-left (here p)) = here (there-left p)
-perm-head-swap (there-left (there-left p)) = {!!}
-perm-head-swap (there-left (there-right p)) = perm-head-swap p
-perm-head-swap (there-right p) = {!!}
-
 <>-head-swap : ∀ {A : Set} {x₁ x₂ : A} {xs ys : List A}
                -> xs <> ys
                -> (x₁ ∷ x₂ ∷ xs) <> (x₂ ∷ x₁ ∷ ys)
 <>-head-swap xs<>ys = insert (there here) (insert here xs<>ys)
+
+⋈-head-swap : ∀ {A : Set} {x₁ x₂ : A} {xs ys : List A}
+               -> xs ⋈ ys
+               -> (x₁ ∷ x₂ ∷ xs) ⋈ (x₂ ∷ x₁ ∷ ys)
+⋈-head-swap (permutation xs⋈ys) = permutation (there-left (here (there-right (here xs⋈ys))))
+
+
 
 lemma-ins : ∀ {A : Set} {x : A} {xs ys ys' zs : List A}
           -> x ⊳ ys ≡ ys'
@@ -1337,10 +1333,9 @@ reverse-lemma : ∀ {A : Set} {xs ys zs : List A}
 reverse-lemma [] = []
 reverse-lemma {xs = []} (here p) with reverse-lemma p
 ... | p' = insert here p'
-reverse-lemma {xs = x ∷ xs} (here p) with reverse-lemma p
-... | p' = insert (shunt-⊳ xs (there {_} {_} {_} {_} here)) p'
-reverse-lemma (there-left p) = {!!}
-reverse-lemma (there-right p) = {!!}
+reverse-lemma {xs = x ∷ xs} (here p) = insert (shunt-⊳ xs (there here)) (reverse-lemma p)
+reverse-lemma (there-left p) = reverse-lemma p
+reverse-lemma (there-right p) = reverse-lemma p
 
 ⋈→<> : ∀ {A : Set} {xs ys : List A} -> xs ⋈ ys -> xs <> ys
 ⋈→<> (permutation p) = reverse-lemma p
