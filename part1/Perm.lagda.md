@@ -1008,6 +1008,30 @@ replacement for `_×_`.  As a consequence, demonstrate an equivalence relating
 ```agda
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 
+Any-++-⇔ : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
+  Any P (xs ++ ys) ⇔ (Any P xs ⊎ Any P ys)
+Any-++-⇔ xs ys =
+   record { to = to xs ys; from = from xs ys }
+ where 
+  to : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
+    Any P (xs ++ ys) → (Any P xs ⊎ Any P ys)
+  from : ∀ { A : Set} {P : A → Set} (xs ys : List A) →
+    Any P xs ⊎ Any P ys → Any P (xs ++ ys)
+
+  extra : ∀ { A : Set} {P : A → Set} (xs ys : List A) → Any P xs -> Any P (xs ++ ys)
+  extra (x ∷ xs) ys (here x₁) = here x₁
+  extra (x ∷ xs) ys (there pf) = there (extra xs ys pf)
+
+  to [] ys pf = inj₂ pf
+  to (x ∷ xs) ys (here x₁) = inj₁ (here x₁)
+  to (x ∷ xs) ys (there pf) with to xs ys pf
+  ... | inj₁ x₁ = inj₁ (there x₁)
+  ... | inj₂ y = inj₂ y
+  from xs ys (inj₁ x) = extra xs ys x
+  from [] ys (inj₂ y) = y
+  from (x ∷ xs) ys (inj₂ y) = there (from xs ys (inj₂ y))
+
+
 
 ```
 
@@ -1390,102 +1414,153 @@ insert-swapped* {A} {x = x} {xs = as} {ys = b ∷ bs} {zs = c ∷ cs}
 <>→swapped* (insert ins pf) = insert-swapped* ins (<>→swapped* pf)
 
 
+insert-∈-left : ∀ {A : Set} {xs ys : List A} {x : A} -> x ⊳ xs ≡ ys -> x ∈ ys
+insert-∈-left here = here refl
+insert-∈-left (there pf) = there (insert-∈-left pf)
 
-----
-----_ : [ 1 , 2 ] ⋈ [ 2 , 1 ]
-----_ = permutation (there-left (here (there-right (here []))))
-----
-----_ : [ 1 , 2 , 3 ] ⋈ [ 3 , 1 , 2 ]
-----_ = permutation (there-left (here (here (there-right (here [])))))
-----
-----self-permutation : ∀ {A : Set} (xs : List A) -> xs ⋈ xs
-----self-permutation [] = permutation []
-----self-permutation (x ∷ xs) with self-permutation xs
-----... | permutation pxs = permutation (here pxs)
-----
-----self-permutation++ : ∀ {A : Set} {xs : List A} -> Permutation++ xs [] xs
-----self-permutation++ {A} {[]} = []
-----self-permutation++ {A} {x ∷ xs} = here self-permutation++
-----
-----shunt-self-permutation++ : ∀ {A : Set} {xs ys : List A} -> Permutation++ (shunt xs ys) xs ys
-----shunt-self-permutation++ {A} {[]} {ys} = self-permutation++
-----shunt-self-permutation++ {A} {x ∷ xs} {ys} = there-right shunt-self-permutation++
-----
-----perm-shunt : ∀ {A : Set} (xs ys zs : List A)
-----           -> Permutation++ xs ys zs -> Permutation++ xs [] (shunt ys zs)
-----perm-shunt xs [] zs pf = pf
-----perm-shunt xs (x ∷ ys) zs pf = perm-shunt xs ys (x ∷ zs) (there-left pf)
-----
-----perm-shunt' : ∀ {A : Set} {xs ys zs : List A}
-----           -> Permutation++ xs ys zs -> Permutation++ xs [] (shunt ys zs)
-----perm-shunt' {A} {xs} {[]} {zs} pf = pf
-----perm-shunt' {A} {xs} {(x ∷ ys)} {zs} pf = perm-shunt' {A} {xs} {ys} {(x ∷ zs)} (there-left pf)
-----
-----shunt-perm : ∀ {A : Set} (xs ys zs : List A)
-----           -> Permutation++ xs [] (shunt ys zs)
-----           -> Permutation++ xs ys zs
-----shunt-perm xs [] zs pf = pf
-----shunt-perm xs (y ∷ ys) zs pf = there-right (shunt-perm xs ys (y ∷ zs) pf)
-----
-----perm-membership : ∀ {A : Set} {xs ys zs : List A}
-----                -> Permutation++ zs xs ys
-----                -> ∀ {x : A} -> (x ∈ zs) ⇔ (x ∈ xs ⊎ x ∈ ys)
-----perm-membership pf = record { to = to pf ; from = from pf }
-----  where to : ∀ {A : Set } {x : A} {xs ys zs : List A} -> Permutation++ zs xs ys -> (x ∈ zs) -> (x ∈ xs ⊎ x ∈ ys)
-----        from : ∀ {A : Set} {x : A} {xs ys zs : List A} -> Permutation++ zs xs ys -> (x ∈ xs ⊎ x ∈ ys) -> (x ∈ zs)
-----        to (there-left perm) pf with to perm pf
-----        ... | inj₁ (here refl) = inj₂ (here refl)
-----        ... | inj₁ (there x) = inj₁ x
-----        ... | inj₂ x∈zs = inj₂ (there x∈zs)
-----        to (there-right perm) pf with to perm pf
-----        ... | inj₁ (here refl) = inj₁ (there (here refl))
-----        ... | inj₁ (there x∈xs) = inj₁ (there (there x∈xs))
-----        ... | inj₂ (here x≡y) = inj₁ (here x≡y)
-----        ... | inj₂ (there x∈ys) = inj₂ x∈ys
-----        to (here perm) (here x≡z) = inj₂ (here x≡z)
-----        to (here perm) (there x∈zs) with to perm x∈zs
-----        ... | inj₁ x∈xs = inj₁ x∈xs
-----        ... | inj₂ x∈ys = inj₂ (there x∈ys)
-----
-----        from [] (inj₁ ())
-----        from [] (inj₂ ())
-----        from (here perm) (inj₁ x∈xs) = there (from perm (inj₁ x∈xs))
-----        from (here perm) (inj₂ (here x≡y)) = here x≡y
-----        from (here perm) (inj₂ (there x∈ys)) = there (from perm (inj₂ x∈ys))
-----        from (there-left perm) (inj₁ x∈xs) = from perm  (inj₁ (there x∈xs))
-----        from (there-left perm) (inj₂ (here x≡y)) = from perm (inj₁ (here x≡y))
-----        from (there-left perm) (inj₂ (there x∈ys)) = from perm (inj₂ x∈ys)
-----        from (there-right perm) (inj₁ (here x≡x)) = from perm (inj₂ (here x≡x))
-----        from (there-right perm) (inj₁ (there x∈xs)) = from perm (inj₁ x∈xs)
-----        from (there-right perm) (inj₂ x∈ys) = from perm (inj₂ (there x∈ys))
-----
-----placementx : ∀ {A : Set} (xs yls yrs : List A) (x : A)
-----          -> Permutation++ xs yls yrs
-----          -> Permutation++ (x ∷ xs) yls (x ∷ yrs)
-----placementx xs yls yrs x pf = here pf
-----
-----self-reverse-permutation++ : ∀ {A : Set} {xs : List A} -> Permutation++ xs xs []
-----self-reverse-permutation++ {A} {[]} = []
-----self-reverse-permutation++ {A} {x ∷ xs} = there-right (here (self-reverse-permutation++))
-----
-------placement++ : ∀ {A : Set} (xs ls rs : List A) (x : A)
-------> Permutation++ xs ls rs -> Permutation++ (x ∷ xs) ls (x ∷ rs)
-----
-----
-----
-----
-----placement : ∀ {A : Set} (x : A) (xs ys : List A) 
-----          -> (x ∷ shunt xs ys) ⋈ (shunt xs (x ∷ ys))
-----placement x xs ys =
-----  permutation (perm-shunt (x ∷ shunt xs ys) xs (x ∷ ys) (here shunt-self-permutation++))
-----
-----
-----reverse-perm : ∀ {A : Set} (xs : List A) -> xs ⋈ reverse′ xs
-----reverse-perm [] = permutation []
-----reverse-perm (x ∷ xs) =
-----  permutation (perm-shunt (x ∷ xs) xs [ x ] (here (self-reverse-permutation++)))
-----
-----
+insert-∈-right : ∀ {A : Set} {xs ys : List A} {x y : A} -> x ⊳ xs ≡ ys -> y ∈ xs -> y ∈ ys
+insert-∈-right here y∈xs = there y∈xs
+insert-∈-right (there pf) (here refl) = here refl
+insert-∈-right (there pf) (there y∈xs) = there (insert-∈-right pf y∈xs)
+
+insert-breakdown : ∀ {A : Set} {xs ys : List A} {x y : A}
+                 -> x ⊳ xs ≡ ys
+                 -> y ∈ ys
+                 -> y ≡ x ⊎ y ∈ xs
+insert-breakdown here (here y≡x) = inj₁ y≡x
+insert-breakdown (there ins) (here y≡x) = inj₂ (here y≡x)
+insert-breakdown here (there y∈xs) = inj₂ y∈xs
+insert-breakdown (there y⊳zs≡xs) (there y∈xs) with insert-breakdown y⊳zs≡xs y∈xs
+... | inj₁ y≡x = inj₁ y≡x
+... | inj₂ y∈xs = inj₂ (there y∈xs)
+
+<>-∈ : ∀ {A : Set} {xs ys : List A} -> (xs <> ys) -> ∀ {x : A} -> (x ∈ xs) ⇔ (x ∈ ys)
+<>-∈ {xs = xs} {ys = ys} xs<>ys! {x} = record { to = to xs<>ys! ; from = from xs<>ys! }
+  where to : ∀ {A : Set} {xs ys : List A} -> (xs <> ys) -> ∀ {x : A} -> (x ∈ xs) -> (x ∈ ys)
+        to (insert x⊳ys≡zs _) (here refl) = insert-∈-left x⊳ys≡zs
+        to (insert x⊳ys≡zs pf) (there x∈xs) = insert-∈-right x⊳ys≡zs (to pf x∈xs)
+
+        from : ∀ {A : Set} {xs ys : List A} -> (xs <> ys) -> ∀ {x : A} -> (x ∈ ys) -> (x ∈ xs)
+        from (insert here pf) (here refl) = here refl
+        from (insert (there x⊳ys≡zs) pf) (here refl) = there (from pf (here refl))
+        from (insert x⊳bs≡y∷ys xs<>bs) z∈ys with insert-breakdown x⊳bs≡y∷ys z∈ys
+        ... | inj₁ x≡y = here x≡y
+        ... | inj₂ x∈ys = there (from xs<>bs x∈ys)
+
+
+cong-<> : ∀ {A : Set} {xs ys zs : List A}
+        -> ys ≡ zs -> xs <> ys -> xs <> zs
+cong-<> ys≡zs xs<>ys = {!!}
+
+
+module <>-Reasoning {A : Set} where
+
+  infix  1 begin<>_
+  infixr 2 _<>⟨⟩_ step-<> step-≡-<>
+  infix  3 _∎<>
+
+  begin<>_ : ∀ {x y : List A}
+    → x <> y
+      -----
+    → x <> y
+  begin<> x<>y  =  x<>y
+
+  _<>⟨⟩_ : ∀ (x : List A) {y : List A}
+    → x <> y
+      -----
+    → x <> y
+  x <>⟨⟩ x<>y  =  x<>y
+
+  step-<> : ∀ (x {y z} : List A) → y <> z → x <> y → x <> z
+  step-<> x y<>z x<>y  =  trans-<> x<>y y<>z
+
+  step-≡-<> : ∀ (xs : List A)  {ys zs : List A} → ys <> zs -> xs ≡ ys -> xs <> zs
+  step-≡-<> xs xs<>ys zs≡xs = {!!}
+
+  syntax step-<> x y<>z x<>y  =  x <>⟨  x<>y ⟩ y<>z
+  syntax step-≡-<> xs xs<>ys zs≡xs  =  xs <>≡⟨ zs≡xs ⟩ xs<>ys
+
+  _∎<> : ∀ (x : List A)
+      -----
+    → x <> x
+  x ∎<>  =  refl-<>
+
+open <>-Reasoning
+
+
+data Order (m n : ℕ) : Set where
+  less : m ≤ n -> Order  m n
+  greater : n ≤ m -> Order  m n
+
+compare : (m n : ℕ) -> Order m n
+compare zero n = less z≤n
+compare (suc m) zero = greater z≤n
+compare (suc m) (suc n) with compare m n
+... | less x = less (s≤s x)
+... | greater x = greater (s≤s x)
+
+
+data Maybe (A : Set) : Set where
+  Just : A -> Maybe A
+  Nothing : Maybe A
+
+data Heap : List ℕ -> Set where
+  [] : Heap []
+  root : ∀ {xs ys ns : List ℕ} 
+       -> (n : ℕ)
+       -> Heap xs
+       -> Heap ys
+       -> (∀ {m : ℕ} -> (m ∈ xs) -> n ≤ m)
+       -> (∀ {m : ℕ} -> (m ∈ ys) -> n ≤ m)
+       -> ns <> n ∷ xs ++ ys
+       -> Heap ns
+
+min : ∀ {ns : List ℕ} (h : Heap ns)
+    -> ∃[ n ] n ∈ ns
+    -> ∃[ n ] n ∈ ns × (∀ {m : ℕ} -> m ∈ ns -> n ≤ m)
+min {ns} (root n left right small-l small-r perm) pf = ⟨ n , ⟨ n∈ns , {!!} ⟩ ⟩
+  where n∈ns : n ∈ ns
+        n∈ns = {!!}
+
+
+cong-<>-++ : ∀ {A : Set} {xs ys zs : List A}
+           -> xs <> ys
+           -> xs ++ zs <> ys ++ zs
+cong-<>-++ {zs = zs} pf = {!!}
+
+open import Data.Nat.Properties using (≤-trans)
+
+merge-heaps : ∀ {ns ms : List ℕ} -> Heap ns -> Heap ms -> Heap (ns ++ ms)
+merge-heaps [] h = h
+merge-heaps {ns = ns} h [] rewrite ++-identityʳ ns = h
+merge-heaps {ns = ns} {ms = ms}
+            h₁@(root {xs = xs} {ys = ys} n₁ l₁ r₁ small-l1 small-r1 perm1)
+            h₂@(root n₂ l₂ r₂ small-l2 small-r2 perm2) 
+  with compare n₁ n₂
+... | less n₁≤n₂ = root n₁ l₁ (merge-heaps r₁ h₂) small-l1 lemma2 lemma1
+        where lemma1 : ns ++ ms <> n₁ ∷ xs ++ ys ++ ms
+              lemma2 : ∀ {m : ℕ} → m ∈ ys ++ ms → n₁ ≤ m
+              lemma1 = begin<>
+                         ns ++ ms
+                       <>⟨ cong-<>-++ perm1 ⟩
+                         (n₁ ∷ xs ++ ys) ++ ms
+                       <>≡⟨ refl ⟩
+                         n₁ ∷ (xs ++ ys) ++ ms
+                       <>≡⟨ cong (_∷_ n₁) (++-assoc xs ys ms) ⟩
+                         n₁ ∷ xs ++ ys ++ ms
+                       ∎<>
+
+              open _⇔_
+
+              lemma2 {m} pf with to (Any-++-⇔ ys ms) pf
+              ... | inj₁ m∈ys = small-r1 m∈ys
+              ... | inj₂ m∈ms = ≤-trans n₁≤n₂ ({!!})
+  --- use perm2 to show m is n2 or m is in xs1 or m is in ys1
+
+
+... | greater x = {!!}
+
+
 ----data STree {A : Set} : (zs : List A) -> Set where
 ----  [] : STree []
 ----  [x] : ∀ (x : A) -> STree ([ x ])
