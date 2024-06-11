@@ -1450,8 +1450,7 @@ insert-breakdown (there y⊳zs≡xs) (there y∈xs) with insert-breakdown y⊳zs
 
 cong-<> : ∀ {A : Set} {xs ys zs : List A}
         -> ys ≡ zs -> xs <> ys -> xs <> zs
-cong-<> ys≡zs xs<>ys = {!!}
-
+cong-<> refl pf = pf
 
 module <>-Reasoning {A : Set} where
 
@@ -1475,7 +1474,7 @@ module <>-Reasoning {A : Set} where
   step-<> x y<>z x<>y  =  trans-<> x<>y y<>z
 
   step-≡-<> : ∀ (xs : List A)  {ys zs : List A} → ys <> zs -> xs ≡ ys -> xs <> zs
-  step-≡-<> xs xs<>ys zs≡xs = {!!}
+  step-≡-<> xs xs<>ys refl = xs<>ys
 
   syntax step-<> x y<>z x<>y  =  x <>⟨  x<>y ⟩ y<>z
   syntax step-≡-<> xs xs<>ys zs≡xs  =  xs <>≡⟨ zs≡xs ⟩ xs<>ys
@@ -1515,20 +1514,30 @@ data Heap : List ℕ -> Set where
        -> ns <> n ∷ xs ++ ys
        -> Heap ns
 
+open import Data.Nat.Properties using (≤-trans; ≤-refl)
+
+
+
 min : ∀ {ns : List ℕ} (h : Heap ns)
     -> ∃[ n ] n ∈ ns
     -> ∃[ n ] n ∈ ns × (∀ {m : ℕ} -> m ∈ ns -> n ≤ m)
-min {ns} (root n left right small-l small-r perm) pf = ⟨ n , ⟨ n∈ns , {!!} ⟩ ⟩
+min {ns} (root {xs = xs} {ys = ys} n left right small-l small-r perm) _ = ⟨ n , ⟨ n∈ns , smallest ⟩ ⟩
   where n∈ns : n ∈ ns
-        n∈ns = {!!}
+        open _⇔_
+        n∈ns = from (<>-∈ perm) (here refl)
+        smallest : ∀ {m : ℕ} → m ∈ ns → n ≤ m
+        smallest {m} m∈ns with to (<>-∈ perm) m∈ns
+        ... | here refl = ≤-refl
+        ... | there m∈xs++ys with to (Any-++-⇔ xs ys) m∈xs++ys
+        ... | inj₁ m∈xs = small-l m∈xs
+        ... | inj₂ m∈ys = small-r m∈ys
+
 
 
 cong-<>-++ : ∀ {A : Set} {xs ys zs : List A}
            -> xs <> ys
            -> xs ++ zs <> ys ++ zs
 cong-<>-++ {zs = zs} pf = {!!}
-
-open import Data.Nat.Properties using (≤-trans)
 
 merge-heaps : ∀ {ns ms : List ℕ} -> Heap ns -> Heap ms -> Heap (ns ++ ms)
 merge-heaps [] h = h
