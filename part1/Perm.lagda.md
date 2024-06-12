@@ -1515,46 +1515,67 @@ data Heap : List ℕ -> Set where
        -> (n : ℕ)
        -> Heap xs
        -> Heap ys
-       -> (∀ {m : ℕ} -> (m ∈ xs) -> n ≤ m)
-       -> (∀ {m : ℕ} -> (m ∈ ys) -> n ≤ m)
-       -> ns <> n ∷ xs ++ ys
+       -> (∀ {m : ℕ} -> (m ∈ ns) -> n ≤ m)
+       -> ns <> n ∷ (xs ++ ys)
        -> Heap ns
 
 open import Data.Nat.Properties using (≤-trans; ≤-refl)
 
 
 
-min : ∀ {ns : List ℕ} (h : Heap ns)
-    -> ∃[ n ] n ∈ ns
-    -> ∃[ n ] n ∈ ns × (∀ {m : ℕ} -> m ∈ ns -> n ≤ m)
-min {ns} (root {xs = xs} {ys = ys} n left right small-l small-r perm) _ = ⟨ n , ⟨ n∈ns , smallest ⟩ ⟩
-  where n∈ns : n ∈ ns
-        open _⇔_
-        n∈ns = from (<>-∈ perm) (here refl)
-        smallest : ∀ {m : ℕ} → m ∈ ns → n ≤ m
-        smallest {m} m∈ns with to (<>-∈ perm) m∈ns
-        ... | here refl = ≤-refl
-        ... | there m∈xs++ys with to (Any-++-⇔ xs ys) m∈xs++ys
-        ... | inj₁ m∈xs = small-l m∈xs
-        ... | inj₂ m∈ys = small-r m∈ys
+--min : ∀ {ns : List ℕ} (h : Heap ns)
+--    -> ∃[ n ] n ∈ ns
+--    -> ∃[ n ] n ∈ ns × (∀ {m : ℕ} -> m ∈ ns -> n ≤ m)
+--min {ns} (root {xs = xs} {ys = ys} n left right small-l small-r perm) _ = ⟨ n , ⟨ n∈ns , smallest ⟩ ⟩
+--  where n∈ns : n ∈ ns
+--        open _⇔_
+--        n∈ns = from (<>-∈ perm) (here refl)
+--        smallest : ∀ {m : ℕ} → m ∈ ns → n ≤ m
+--        smallest {m} m∈ns with to (<>-∈ perm) m∈ns
+--        ... | here refl = ≤-refl
+--        ... | there m∈xs++ys with to (Any-++-⇔ xs ys) m∈xs++ys
+--        ... | inj₁ m∈xs = small-l m∈xs
+--        ... | inj₂ m∈ys = small-r m∈ys
 
 
+
+insert-snoc :  ∀ {A : Set} {xs ys : List A} {x z : A}
+            -> x ⊳ xs ≡ ys
+            -> x ⊳ (xs ++ [ z ]) ≡ (ys ++ [ z ])
+insert-snoc here = here
+insert-snoc (there pf) = there (insert-snoc pf)
+
+cong-<>-snoc : ∀ {A : Set} {xs ys : List A} {z : A}
+           -> xs <> ys
+           -> xs ++ [ z ] <> ys ++ [ z ]
+cong-<>-snoc [] = refl-<>
+cong-<>-snoc (insert x pf) = insert (insert-snoc x) (cong-<>-snoc pf)
 
 cong-<>-++ : ∀ {A : Set} {xs ys zs : List A}
            -> xs <> ys
            -> xs ++ zs <> ys ++ zs
-cong-<>-++ {zs = zs} pf = {!!}
+cong-<>-++ {xs = xs} {ys = ys} {zs = []} xs<>ys rewrite ++-identityʳ xs | ++-identityʳ ys = xs<>ys
+cong-<>-++ {xs = xs} {ys = ys} {zs = z ∷ zs} pf = 
+  begin<>
+    xs ++ z ∷ zs
+  <>≡⟨ sym (++-assoc xs [ z ] zs) ⟩
+    (xs ++ [ z ]) ++ zs
+  <>⟨ cong-<>-++ (cong-<>-snoc pf) ⟩
+    (ys ++ [ z ]) ++ zs
+  <>≡⟨ ++-assoc ys [ z ] zs ⟩
+    ys ++ z ∷ zs
+  ∎<>
 
 merge-heaps : ∀ {ns ms : List ℕ} -> Heap ns -> Heap ms -> Heap (ns ++ ms)
 merge-heaps [] h = h
 merge-heaps {ns = ns} h [] rewrite ++-identityʳ ns = h
 merge-heaps {ns = ns} {ms = ms}
-            h₁@(root {xs = xs} {ys = ys} n₁ l₁ r₁ small-l1 small-r1 perm1)
-            h₂@(root n₂ l₂ r₂ small-l2 small-r2 perm2) 
+            h₁@(root {xs = xs} {ys = ys} {ns = ns₁} n₁ l₁ r₁ small₁ perm1)
+            h₂@(root {ns = ns₂} n₂ l₂ r₂ small₂ perm2) 
   with compare n₁ n₂
-... | less n₁≤n₂ = root n₁ l₁ (merge-heaps r₁ h₂) small-l1 lemma2 lemma1
+... | less n₁≤n₂ = root n₁ l₁ (merge-heaps r₁ h₂) lemma2 lemma1
         where lemma1 : ns ++ ms <> n₁ ∷ xs ++ ys ++ ms
-              lemma2 : ∀ {m : ℕ} → m ∈ ys ++ ms → n₁ ≤ m
+              lemma2 : ∀ {m : ℕ} → m ∈ ns ++ ms → n₁ ≤ m
               lemma1 = begin<>
                          ns ++ ms
                        <>⟨ cong-<>-++ perm1 ⟩
@@ -1567,14 +1588,134 @@ merge-heaps {ns = ns} {ms = ms}
 
               open _⇔_
 
-              lemma2 {m} pf with to (Any-++-⇔ ys ms) pf
-              ... | inj₁ m∈ys = small-r1 m∈ys
-              ... | inj₂ m∈ms = ≤-trans n₁≤n₂ ({!!})
-  --- use perm2 to show m is n2 or m is in xs1 or m is in ys1
+              lemma2 {m} m∈list with to (Any-++-⇔ ns ms) m∈list
+              ... | inj₁ m∈ns = small₁ m∈ns
+              ... | inj₂ m∈ms = ≤-trans n₁≤n₂ (small₂ m∈ms)
+... | greater n₂≤n₂ = {!!}
+
+heap-elements : ∀ {ns : List ℕ} -> Heap ns -> ∃[ ms ] ms ≡ ns
+heap-elements [] = ⟨ [] , refl ⟩
+heap-elements (root {ns = ns} n h h₁ x x₁) = ⟨ ns , refl ⟩
+
+data length_is_ {A : Set} : List A -> ℕ -> Set where
+  [] : length [] is zero
+  there : ∀ {a : A} {as : List A} {k : ℕ} -> length as is k -> length (a ∷ as) is (suc k)
 
 
-... | greater x = {!!}
+insert-length : ∀ {A : Set} {x : A} {xs ys : List A} {k : ℕ}
+              -> x ⊳ xs ≡ ys -> length xs is k -> length ys is (suc k)
+insert-length here len = there len
+insert-length (there ins) (there len) = there (insert-length ins len)
 
+insert-length' : ∀ {A : Set} {x : A} {xs ys : List A} {k : ℕ}
+              -> x ⊳ xs ≡ ys -> length ys is suc k -> length xs is k
+insert-length' here (there len) = len
+insert-length' (there ins) (there (there len)) = there (insert-length' ins (there len))
+
+
+
+
+length-pred :  ∀ {A : Set} {x : A} {xs : List A} {k : ℕ}
+            -> length (x ∷ xs) is (suc k) -> length xs is k
+length-pred (there pf) = pf
+
+length-perm : ∀ {A : Set} {xs ys : List A} {k : ℕ} -> length xs is k -> xs <> ys -> length ys is k
+length-perm [] [] = []
+length-perm (there pf) (insert here perm) = there (length-perm pf perm)
+length-perm (there (there as-l-k)) (insert (there a⊳ys≡zs) (insert x⊳xs≡ys perm))
+   = there (insert-length a⊳ys≡zs (length-pred (insert-length x⊳xs≡ys (length-perm as-l-k perm))))
+
+delete-min : ∀ {ns : List ℕ} {k : ℕ}
+           -> length ns is suc k
+           -> (h : Heap ns)
+           -> ∃[ m ] ∃[ ms ] Heap ms × length ms is k × (ns <> m ∷ ms) × (∀ {z : ℕ} -> (z ∈ ns) -> m ≤ z)
+delete-min (len) (root n left right small perm) with heap-elements (merge-heaps left right)
+... | ⟨ elements , refl ⟩ =
+        ⟨ n , ⟨ elements , ⟨ newheap , ⟨ length-pred (length-perm len perm) , ⟨ perm , small ⟩ ⟩ ⟩ ⟩ ⟩
+  where newheap = merge-heaps left right
+
+singleton-heap : ∀ (n : ℕ) -> Heap [ n ]
+singleton-heap n = root n [] [] (λ { (here refl) → ≤-refl}) refl-<>
+
+insert-in-heap : ∀ {ns : List ℕ} -> (n : ℕ) -> Heap ns -> Heap (n ∷ ns)
+insert-in-heap n h = merge-heaps (singleton-heap n) h
+
+
+build-heap : (ns : List ℕ) -> Heap ns
+build-heap [] = []
+build-heap (n ∷ ns) = insert-in-heap n (build-heap ns)
+
+----------------------------------------------------------------
+
+data Ordered : (List ℕ -> Set) where
+  ordered-[] : Ordered []
+  ordered-[x] : ∀ {n : ℕ} -> Ordered [ n ]
+  ordered-∷ : ∀ {n₁ n₂ : ℕ} {ns : List ℕ} -> n₁ ≤ n₂ -> Ordered (n₂ ∷ ns) 
+            -> Ordered (n₁ ∷ n₂ ∷ ns)
+
+
+≤-congruence : ∀ {x y z : ℕ} -> (x ≤ y) -> (y ≡ z) -> (x ≤ z)
+≤-congruence pf refl = pf
+
+Ordered-≤ : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) ⇔ (Ordered ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y))
+Ordered-≤ n ns = record { to = to n ns ; from = from n ns }
+  where to : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) -> (Ordered ns × (∀ (y : ℕ) ->  (y ∈ ns) -> n ≤ y))
+        from : ∀ (n : ℕ) (ns : List ℕ) -> (Ordered ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y)) -> Ordered (n ∷ ns)
+
+        to n [] ordered-[x] = ⟨ ordered-[] , (λ y ()) ⟩
+        to n (m ∷ ms) (ordered-∷ n≤m pf) with to m ms pf
+        ... | ⟨ _ , m≤ms ⟩ = ⟨ pf , (λ y → λ{ (here x) → ≤-congruence n≤m (sym x)
+                                            ; (there x) → ≤-trans n≤m (m≤ms y x)}) ⟩
+        from n [] ⟨ O-ns , n≤ns ⟩ = ordered-[x]
+        from n (x ∷ xs) ⟨ ordered-x∷xs , n≤x∷xs ⟩ =
+          ordered-∷ (n≤x∷xs x (here refl)) ordered-x∷xs
+
+open _⇔_
+
+
+
+drain-heap : ∀ {ns : List ℕ} {n : ℕ} -> (length ns is n) -> Heap ns -> ∃[ ms ] ns <> ms × Ordered ms
+drain-heap {[]} {zero} pf [] = ⟨ [] , ⟨ [] , ordered-[] ⟩ ⟩
+drain-heap {z ∷ zs} {suc k} (length) h@(root n _ _ orig-order perm)
+  with delete-min length h -- ⟨ n , from (<>-∈ perm) (here refl) ⟩
+... | ⟨ min , ⟨ ms , ⟨ newheap , ⟨ len , ⟨ perm1 , small ⟩ ⟩ ⟩ ⟩ ⟩ with drain-heap len newheap
+... | ⟨ rest , ⟨ ms<>rest , ordered ⟩ ⟩ = ⟨ min ∷ rest , ⟨ fullperm , fullorder ⟩ ⟩
+  where smallest = λ y y∈rest → small (from (<>-∈ perm1) (there (from (<>-∈ ms<>rest) y∈rest)))
+        fullorder = from (Ordered-≤ min rest) ⟨ ordered , smallest ⟩
+        fullperm : z ∷ zs <> min ∷ rest
+        fullperm = 
+           begin<>
+             z ∷ zs
+           <>⟨ perm1 ⟩ 
+             min ∷ ms
+           <>⟨ insert here ms<>rest ⟩ 
+             min ∷ rest
+           ∎<>
+
+             
+length-++-is : ∀ {A : Set} {xs ys : List A} {k1 k2 : ℕ}
+          -> length xs is k1
+          -> length ys is k2
+          -> length (xs ++ ys) is (k1 + k2)
+length-++-is [] l2 = l2
+length-++-is (there l1) l2 = there (length-++-is l1 l2)
+
+heap-size : ∀ {ns : List ℕ} -> Heap ns -> ∃[ k ] length ns is k
+heap-size [] = ⟨ zero , [] ⟩
+heap-size (root _ left right _ perm) with heap-size left | heap-size right 
+... | ⟨ kₗ , lenₗ ⟩ | ⟨ kᵣ , lenᵣ ⟩ =
+   ⟨ 1 + kₗ + kᵣ , length-perm (there (length-++-is lenₗ lenᵣ)) (sym-<> perm) ⟩
+
+           -- 
+heapsort : (ns : List ℕ) -> ∃[ ms ] ns <> ms × Ordered ms
+heapsort ns with heap-size (build-heap ns)
+... | ⟨ _ , len ⟩ = drain-heap len (build-heap ns)
+
+
+            
+--    -> ∃[ n ] n ∈ ns
+--    -> ∃[ n ] n ∈ ns × (∀ {m : ℕ} -> m ∈ ns -> n ≤ m)
+--min {ns} (root {xs = xs} {ys = ys} n left right small-l small-r perm) _ = ⟨ n , ⟨ n∈ns , smallest
 
 ----data STree {A : Set} : (zs : List A) -> Set where
 ----  [] : STree []
