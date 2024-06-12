@@ -1245,6 +1245,12 @@ self' (x ∷ xs) = insert here (self' xs)
 refl-<> : ∀ {A : Set} {xs : List A} -> xs <> xs
 refl-<> {xs = xs} = self' xs
 
+sym-<>  : ∀ {A : Set} {xs ys : List A} -> xs <> ys -> ys <> xs
+sym-<> [] = []
+sym-<> (insert here pf) = insert here (sym-<> pf)
+sym-<> (insert {ys = y ∷ ys} (there {y = x} x⊳ys≡zs) pf) with sym-<> pf
+... | thing = {!!}
+
 insertion : ∀ {A : Set} {x : A} {xs zs : List A} -> x ⊳ xs ≡ zs -> (x ∷ xs) <> zs
 insertion here = insert here refl-<>
 insertion (there pf) = insert (there pf) refl-<>
