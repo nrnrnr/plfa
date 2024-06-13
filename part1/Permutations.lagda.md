@@ -340,12 +340,23 @@ trans-⋈ {A} (insert x⊳as≡ys xs⋈as) ys⋈zs with pullout-x x⊳as≡ys ys
 ... | ⟨ cs , ⟨ x⊳cs≡zs , as⋈cs ⟩ ⟩ = insert x⊳cs≡zs (trans-⋈ xs⋈as as⋈cs)
 ```
 
-I haven't found a nice direct proof of symmetry.
-Instead, I prove symmetry in another representation.
+To prove symmetry, I use a lemma that says I can pull the right-hand side's head
+out of a left-hand side/
 
 ```agda
+pullout-rhs : ∀ {A : Set} {y : A} {xs ys : List A}
+           -> xs ⋈ (y ∷ ys)
+           -> ∃[ ws ] y ⊳ ws ≡ xs × ws ⋈ ys
+pullout-rhs {xs = y ∷ ws}
+            (insert here ws⋈ys) = ⟨ ws , ⟨ here , ws⋈ys ⟩ ⟩
+pullout-rhs {xs = w ∷ ws}
+            (insert (there w⊳zs≡ys) ws⋈y∷zs) with pullout-rhs ws⋈y∷zs
+... | ⟨ vs , ⟨ y⊳vs≡ws , vs⋈zs ⟩ ⟩ = ⟨ w ∷ vs , ⟨ there y⊳vs≡ws , insert w⊳zs≡ys vs⋈zs ⟩ ⟩
+
 sym-⋈  : ∀ {A : Set} {xs ys : List A} -> xs ⋈ ys -> ys ⋈ xs
--- ... proof below ...
+sym-⋈ [] = []
+sym-⋈ {ys = y ∷ ys} pf@(insert _ _) with pullout-rhs pf
+... | ⟨ ws , ⟨ y⊳ws≡xs , ws⋈ys ⟩ ⟩ = insert y⊳ws≡xs (sym-⋈ ws⋈ys)
 ```
 
 
@@ -548,27 +559,6 @@ Equivalence preserves permutation.
 cong-⋈ : ∀ {A : Set} {xs ys zs : List A}
         -> ys ≡ zs -> xs ⋈ ys -> xs ⋈ zs
 cong-⋈ refl pf = pf
-
-
-pullout-rhs : ∀ {A : Set} {y : A} {xs ys : List A}
-           -> xs ⋈ (y ∷ ys)
-           -> ∃[ ws ] y ⊳ ws ≡ xs × ws ⋈ ys
-pullout-rhs {xs = y ∷ xs} (insert here xs⋈ys) = ⟨ xs , ⟨ here , xs⋈ys ⟩ ⟩
-pullout-rhs {xs = w ∷ ws} {ys = ys}
-            (insert {ys = y ∷ zs} (there w⊳zs≡ys) perm) with pullout-rhs perm
-... | ⟨ vs , ⟨ y⊳vs≡ws , vs⋈zs ⟩ ⟩ = ⟨ w ∷ vs , ⟨ there y⊳vs≡ws , insert w⊳zs≡ys vs⋈zs ⟩ ⟩
-
-
---sym-⋈ xs⋈ys = swapped*→⋈ (sym-swapped* (⋈→swapped* xs⋈ys))
-
---sym-⋈  : ∀ {A : Set} {xs ys : List A} -> xs ⋈ ys -> ys ⋈ xs
-sym-⋈ [] = []
-sym-⋈ {xs = x ∷ xs} {ys = y ∷ ys} pf@(insert _ _) with pullout-rhs pf
-... | ⟨ ws , ⟨ y⊳ws≡xs , ws⋈ys ⟩ ⟩ = insert y⊳ws≡xs (sym-⋈ ws⋈ys)
-
-
-
-
 ```
 
 ## Equational proofs about insertion permutations
