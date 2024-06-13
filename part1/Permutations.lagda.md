@@ -410,6 +410,23 @@ sym-swapped* (swap one many) with sym-swapped* many
 ```
 
 
+### Standard-library permutations
+
+The standard library defines permutations as follows:
+
+    infix 3 _↭_
+
+    data _↭_ : Rel (List A) a where
+      refl  : ∀ {xs}        → xs ↭ xs
+      prep  : ∀ {xs ys} x   → xs ↭ ys → x ∷ xs ↭ x ∷ ys
+      swap  : ∀ {xs ys} x y → xs ↭ ys → x ∷ y ∷ xs ↭ y ∷ x ∷ ys
+      trans : ∀ {xs ys zs}  → xs ↭ ys → ys ↭ zs → xs ↭ zs
+
+This definition is very similar to the swapping definition,
+except the reflexive transitive closure is expressed directly 
+as axioms of the datatype.
+
+
 ## All formulations are equivalent
 
 ### Insertion growth implies zipper growth
@@ -531,6 +548,41 @@ insert-swapped* {A} {x = x} {xs = as} {ys = b ∷ bs} {zs = c ∷ cs}
 ⋈→swapped* [] = refl
 ⋈→swapped* (insert ins pf) = insert-swapped* ins (⋈→swapped* pf)
 ```
+
+### Swapping is equivalent to the standard library
+
+The standard library lacks the "single swap" predicate,
+but both predicates map nicely onto the standard library.
+Each library constructor is used exactly once.
+
+```agda
+open import Data.List.Relation.Binary.Permutation.Propositional 
+  using (_↭_; refl; prep; swap) renaming (trans to trans-↭)
+
+swapped→↭ : ∀ {A : Set} {xs ys : List A} -> xs swapped-is ys -> xs ↭ ys
+swapped*→↭ : ∀ {A : Set} {xs ys : List A} -> xs swapped*-is ys -> xs ↭ ys
+
+swapped*→↭ refl = refl
+swapped*→↭ (swap one many) = trans-↭ (swapped→↭ one) (swapped*→↭ many) 
+
+swapped→↭ here = swap _ _ refl
+swapped→↭ (there pf) = prep _ (swapped→↭ pf)
+```
+
+The opposite direction relies on my `grow-swap*` lemma,
+which is of course exactly the `prep` axiom built into the standard library.
+
+```agda
+↭→swapped* : ∀ {A : Set} {xs ys : List A} -> xs ↭ ys -> xs swapped*-is ys
+↭→swapped* refl = refl
+↭→swapped* (prep x pf) = grow-swap* (↭→swapped* pf)
+↭→swapped* (swap x y pf) = 
+   trans-swapped* (grow-swap* (grow-swap* (↭→swapped* pf))) (swap here refl)
+↭→swapped* (trans-↭ left right) = trans-swapped* (↭→swapped* left) (↭→swapped* right)
+
+```
+
+
 
 ## Reasoning about insertion permutations
 
