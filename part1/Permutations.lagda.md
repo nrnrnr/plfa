@@ -1,5 +1,5 @@
 ---
-title     : "Permutations":
+title     : "Permutations: A precursor to proving sorting algorithms correct"
 permalink : /Permutations/
 ---
 
@@ -26,7 +26,7 @@ open import Data.Product using (_×_; ∃; ∃-syntax) renaming (_,_ to ⟨_,_�
 open import Data.Product using (Σ-syntax)
 open import Function using (_∘_)
 open import Level using (Level)
-open import plfa.part1.Isomorphism using (_≃_; _⇔_)
+open import cs.plfa.part1.Isomorphism using (_≃_; _⇔_)
 
 open import Data.List using (List; _++_; length; map; foldr; downFrom; []; _∷_)
 open import Data.List.Relation.Unary.All using (All; []; _∷_)
@@ -160,7 +160,7 @@ Any-++-⇔ xs ys =
 
 The relation that concerns us is "list `xs` is a permutation of list `ys`."
 
-### Growth with zipper
+### Permutations via growth with zipper
 
 The permtuation relation can be specified inductively by growing `xs` and `ys` simultaneously.
 In this formulation, `xs` is always grown by adding a new element at the head, where `ys` 
@@ -177,7 +177,7 @@ The representation has three species of constructors:
 
 ```agda
 data Permutation-Zipper {A : Set} : (xs ysˡ ysʳ : List A) -> Set where
-  -- xs is a permutation of reverse ysˡ ++ ysʳ
+  -- `xs` is a permutation of `reverse ysˡ ++ ysʳ`
   []   :  Permutation-Zipper [] [] []
   there-left : {xs ysˡ ysʳ : List A} -> {y : A}
        -> Permutation-Zipper xs (y ∷ ysˡ) ysʳ
@@ -197,10 +197,12 @@ data _Zip⋈_ {A : Set} : (xs ys : List A) -> Set where
   permutation : ∀ {xs zs : List A} -> Permutation-Zipper xs [] zs -> xs Zip⋈ zs
 ```
 
-### Growth with insertion
+### Permutations via growth with insertion
 
 The second representation is almost the same as the first,
-but instead of using the zipper, it uses a separate judgement that says "a new element is inserted somewhere into `ys`.
+but instead of using the zipper, it uses a separate judgement that
+says "a new element is inserted somewhere into `ys`.
+
 
 ```agda
 data _⊳_≡_ {A : Set} : (x : A) (xs ys : List A) -> Set where
@@ -217,6 +219,16 @@ data _⋈_ {A : Set} : (xs ys : List A) -> Set where
   [] : [] ⋈ []
   insert : ∀ {x : A} {xs ys zs : List A} -> x ⊳ ys ≡ zs -> xs ⋈ ys -> x ∷ xs ⋈ zs
 ```
+
+This representation is a simplified version of [one 
+implemented by Andras
+Kovacs](https://gist.github.com/AndrasKovacs/0d7bcc3aba513c29ef73/);
+Kovacs's representation uses insertion on *both* sides, not just one.
+Using insertion on both sides seems to complicate the proof of
+transitivity.
+
+
+
 
 #### Properties of insertions
 
@@ -284,7 +296,7 @@ result-⊆-inserted-⊎-inserted-into (there y⊳zs≡xs) (there y∈xs)
 ```
 
 
-#### Equivalence properties
+#### Equivalence properties of the permutation relation
 
 Permutation is an equivalence relation.
 
@@ -328,7 +340,17 @@ trans-⋈ {A} (insert x⊳as≡ys xs⋈as) ys⋈zs with pullout-x x⊳as≡ys ys
 ... | ⟨ cs , ⟨ x⊳cs≡zs , as⋈cs ⟩ ⟩ = insert x⊳cs≡zs (trans-⋈ xs⋈as as⋈cs)
 ```
 
-### Swapping
+I haven't found a nice direct proof of symmetry.
+Instead, I prove symmetry in another representation.
+
+```agda
+sym-⋈  : ∀ {A : Set} {xs ys : List A} -> xs ⋈ ys -> ys ⋈ xs
+-- ... proof below ...
+```
+
+
+
+### Permutation by repeated swapping
 
 List `ys` is a permutation of `xs` if `ys` can be obtained from `xs` by 
 swapping adjacent elements.
@@ -359,6 +381,21 @@ trans-swapped* :  ∀ {A : Set} {xs ys zs : List A}
                -> xs swapped*-is zs
 trans-swapped* refl pf = pf
 trans-swapped* (swap one many) rest = swap one (trans-swapped* many rest)
+```
+
+```agda
+sym-swapped :  ∀ {A : Set} {xs ys : List A}
+               -> xs swapped-is ys
+               -> ys swapped-is xs
+sym-swapped here = here
+sym-swapped (there pf) = there (sym-swapped pf)
+
+sym-swapped* :  ∀ {A : Set} {xs ys : List A}
+               -> xs swapped*-is ys
+               -> ys swapped*-is xs
+sym-swapped* refl = refl
+sym-swapped* (swap one many) with sym-swapped* many
+... | thing = trans-swapped* thing (swap (sym-swapped one) refl) 
 ```
 
 
@@ -513,11 +550,25 @@ cong-⋈ : ∀ {A : Set} {xs ys zs : List A}
 cong-⋈ refl pf = pf
 
 
-sym-⋈  : ∀ {A : Set} {xs ys : List A} -> xs ⋈ ys -> ys ⋈ xs
+pullout-rhs : ∀ {A : Set} {y : A} {xs ys : List A}
+           -> xs ⋈ (y ∷ ys)
+           -> ∃[ ws ] y ⊳ ws ≡ xs × ws ⋈ ys
+pullout-rhs {xs = y ∷ xs} (insert here xs⋈ys) = ⟨ xs , ⟨ here , xs⋈ys ⟩ ⟩
+pullout-rhs {xs = w ∷ ws} {ys = ys}
+            (insert {ys = y ∷ zs} (there w⊳zs≡ys) perm) with pullout-rhs perm
+... | ⟨ vs , ⟨ y⊳vs≡ws , vs⋈zs ⟩ ⟩ = ⟨ w ∷ vs , ⟨ there y⊳vs≡ws , insert w⊳zs≡ys vs⋈zs ⟩ ⟩
+
+
+--sym-⋈ xs⋈ys = swapped*→⋈ (sym-swapped* (⋈→swapped* xs⋈ys))
+
+--sym-⋈  : ∀ {A : Set} {xs ys : List A} -> xs ⋈ ys -> ys ⋈ xs
 sym-⋈ [] = []
-sym-⋈ (insert here pf) = insert here (sym-⋈ pf)
-sym-⋈ (insert {ys = y ∷ ys} (there {y = x} x⊳ys≡zs) pf) with sym-⋈ pf
-... | thing = {!!}
+sym-⋈ {xs = x ∷ xs} {ys = y ∷ ys} pf@(insert _ _) with pullout-rhs pf
+... | ⟨ ws , ⟨ y⊳ws≡xs , ws⋈ys ⟩ ⟩ = insert y⊳ws≡xs (sym-⋈ ws⋈ys)
+
+
+
+
 ```
 
 ## Equational proofs about insertion permutations
@@ -645,11 +696,3 @@ insertion here = insert here refl-⋈
 insertion (there pf) = insert (there pf) refl-⋈
 ```
 
-## Unicode
-
-This chapter uses the following unicode:
-
-    ∷  U+2237  PROPORTION  (\::)
-    ⊗  U+2297  CIRCLED TIMES  (\otimes, \ox)
-    ∈  U+2208  ELEMENT OF  (\in)
-    ∉  U+2209  NOT AN ELEMENT OF  (\inn, \notin)
