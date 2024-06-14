@@ -651,15 +651,77 @@ module ⋈-Reasoning {A : Set} where
   x ∎⋈  =  refl-⋈
 ```
 
-## Sanity checks
+## Permutations and append
 
+To exchange the order of arguments to `xs ++ ys`, we must be able to find
+a way to insert between the two lists.
 
 ```agda
+find-insertion : ∀ {A : Set} (x : A) (xs ys : List A)
+              -> x ⊳ (xs ++ ys) ≡ (xs ++ x ∷ ys)
+find-insertion x [] ys = here
+find-insertion x (x₁ ∷ xs) ys = there (find-insertion x xs ys)
+
+swap-++ : ∀ {A : Set} (xs ys : List A)
+          -> xs ++ ys ⋈ ys ++ xs
+swap-++ [] ys rewrite ++-identityʳ ys = refl-⋈
+swap-++ (x ∷ xs) ys = insert (find-insertion x ys xs) (swap-++ xs ys)
+```
+
+An element inserted between two lists can be pulled out.
+
+```agda
+open ⋈-Reasoning
+
 ⋈-head-swap : ∀ {A : Set} {x₁ x₂ : A} {xs ys : List A}
                -> xs ⋈ ys
                -> (x₁ ∷ x₂ ∷ xs) ⋈ (x₂ ∷ x₁ ∷ ys)
 ⋈-head-swap xs⋈ys = insert (there here) (insert here xs⋈ys)
 
+swap-cons : ∀ {A : Set} (xs : List A) (x : A) (ys : List A)
+          -> xs ++ x ∷ ys ⋈ x ∷ xs ++ ys
+swap-cons [] x ys = refl-⋈
+swap-cons (x₁ ∷ xs) x ys =
+   begin⋈
+     (x₁ ∷ xs) ++ x ∷ ys
+   ⋈≡⟨ refl ⟩
+     x₁ ∷ (xs ++ x ∷ ys)
+   ⋈⟨ insert here (swap-cons xs x ys) ⟩
+     x₁ ∷ (x ∷ xs ++ ys)
+   ⋈⟨ ⋈-head-swap refl-⋈ ⟩
+     x ∷ (x₁ ∷ xs) ++ ys
+   ∎⋈
+```
+
+
+We can add elements on the left or on the right.
+
+```agda
+++-⋈ˡ : ∀ {A : Set} {xs ys zs : List A}
+      → xs ⋈ ys -> zs ++ xs ⋈ zs ++ ys
+++-⋈ʳ : ∀ {A : Set} {xs ys zs : List A}
+      → xs ⋈ ys -> xs ++ zs ⋈ ys ++ zs
+++-⋈ˡ {zs = []} xs⋈ys = xs⋈ys
+++-⋈ˡ {zs = x ∷ zs} xs⋈ys = insert here (++-⋈ˡ xs⋈ys)
+++-⋈ʳ {xs = xs} {ys = ys} {zs = []}
+      xs⋈ys rewrite ++-identityʳ xs | ++-identityʳ ys = xs⋈ys
+++-⋈ʳ {xs = xs} {ys = ys} {zs = z ∷ zs} xs⋈ys = 
+  begin⋈
+    xs ++ z ∷ zs
+  ⋈⟨ swap-cons xs z zs ⟩
+    z ∷ xs ++ zs
+  ⋈⟨ insert here (++-⋈ʳ xs⋈ys) ⟩
+    z ∷ ys ++ zs
+  ⋈⟨ sym-⋈ (swap-cons ys z zs) ⟩
+    ys ++ z ∷ zs
+  ∎⋈
+
+```
+
+## Sanity checks
+
+
+```agda
 Zip⋈-head-swap : ∀ {A : Set} {x₁ x₂ : A} {xs ys : List A}
                -> xs Zip⋈ ys
                -> (x₁ ∷ x₂ ∷ xs) Zip⋈ (x₂ ∷ x₁ ∷ ys)

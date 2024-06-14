@@ -90,12 +90,6 @@ open import Data.Sum using (_⊎_; inj₁; inj₂)
 
 open ⋈-Reasoning
 
-find-insertion : ∀ {A : Set} (x : A) (xs ys : List A)
-              -> x ⊳ (xs ++ ys) ≡ (xs ++ x ∷ ys)
-find-insertion x [] ys = here
-find-insertion x (x₁ ∷ xs) ys = there (find-insertion x xs ys)
-
-
 cong-⋈-++ʳ : ∀ {A : Set} {xs ys zs : List A}
            -> xs ⋈ ys
            -> zs ++ xs ⋈ zs ++ ys
@@ -140,27 +134,7 @@ merge-heaps {ns = ns} {ms = ms}
                        ⋈⟨ insert here (swap-++-++ ns xs₂ ys₂) ⟩
                          n₂ ∷ (ns ++ ys₂) ++ xs₂
                        ∎⋈
-                  where swap-cons : ∀ {A : Set} (xs : List A) (x : A) (ys : List A)
-                                  -> xs ++ x ∷ ys ⋈ x ∷ xs ++ ys
-                        swap-cons [] x ys = refl-⋈
-                        swap-cons (x₁ ∷ xs) x ys with swap-cons xs x ys
-                        ... | thing =
-                           begin⋈
-                             (x₁ ∷ xs) ++ x ∷ ys
-                           ⋈≡⟨ refl ⟩
-                             x₁ ∷ (xs ++ x ∷ ys)
-                           ⋈⟨ insert here (swap-cons xs x ys) ⟩
-                             x₁ ∷ (x ∷ xs ++ ys)
-                           ⋈⟨ ⋈-head-swap refl-⋈ ⟩
-                             x ∷ (x₁ ∷ xs) ++ ys
-                           ∎⋈
-
-                        swap-++ : ∀ {A : Set} (xs ys : List A)
-                                  -> xs ++ ys ⋈ ys ++ xs
-                        swap-++ [] ys rewrite ++-identityʳ ys = refl-⋈
-                        swap-++ (x ∷ xs) ys = insert (find-insertion x ys xs) (swap-++ xs ys)
-
-                        swap-++-++ : ∀ {A : Set} (xs ys zs : List A)
+                  where swap-++-++ : ∀ {A : Set} (xs ys zs : List A)
                                   -> xs ++ ys ++ zs ⋈ (xs ++ zs) ++ ys
                         swap-++-++ [] ys zs = swap-++ ys zs
                         swap-++-++ (x ∷ xs) ys zs = insert here (swap-++-++ xs ys zs)
@@ -224,41 +198,49 @@ build-heap (n ∷ ns) = insert-in-heap n (build-heap ns)
 
 ----------------------------------------------------------------
 
-data Ordered : (List ℕ -> Set) where
-  ordered-[] : Ordered []
-  ordered-[x] : ∀ {n : ℕ} -> Ordered [ n ]
-  ordered-∷ : ∀ {n₁ n₂ : ℕ} {ns : List ℕ} -> n₁ ≤ n₂ -> Ordered (n₂ ∷ ns) 
-            -> Ordered (n₁ ∷ n₂ ∷ ns)
+data Ascending : (List ℕ -> Set) where
+
+  ascending-[]  : Ascending []
+
+  ascending-[x] : ∀ {n : ℕ}
+                → Ascending [ n ]
+
+  ascending-∷  : ∀ {n₁ n₂ : ℕ} {ns : List ℕ}
+               → n₁ ≤ n₂
+               → Ascending (n₂ ∷ ns) 
+               -------------------------------
+               → Ascending (n₁ ∷ n₂ ∷ ns)
 
 
 ≤-congruence : ∀ {x y z : ℕ} -> (x ≤ y) -> (y ≡ z) -> (x ≤ z)
 ≤-congruence pf refl = pf
 
-Ordered-≤ : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) ⇔ (Ordered ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y))
-Ordered-≤ n ns = record { to = to n ns ; from = from n ns }
-  where to : ∀ (n : ℕ) (ns : List ℕ) -> Ordered (n ∷ ns) -> (Ordered ns × (∀ (y : ℕ) ->  (y ∈ ns) -> n ≤ y))
-        from : ∀ (n : ℕ) (ns : List ℕ) -> (Ordered ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y)) -> Ordered (n ∷ ns)
+Ascending-≤ : ∀ (n : ℕ) (ns : List ℕ)
+            -> Ascending (n ∷ ns) ⇔ (Ascending ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y))
+Ascending-≤ n ns = record { to = to n ns ; from = from n ns }
+  where to : ∀ (n : ℕ) (ns : List ℕ) -> Ascending (n ∷ ns) -> (Ascending ns × (∀ (y : ℕ) ->  (y ∈ ns) -> n ≤ y))
+        from : ∀ (n : ℕ) (ns : List ℕ) -> (Ascending ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y)) -> Ascending (n ∷ ns)
 
-        to n [] ordered-[x] = ⟨ ordered-[] , (λ y ()) ⟩
-        to n (m ∷ ms) (ordered-∷ n≤m pf) with to m ms pf
+        to n [] ascending-[x] = ⟨ ascending-[] , (λ y ()) ⟩
+        to n (m ∷ ms) (ascending-∷ n≤m pf) with to m ms pf
         ... | ⟨ _ , m≤ms ⟩ = ⟨ pf , (λ y → λ{ (here x) → ≤-congruence n≤m (sym x)
                                             ; (there x) → ≤-trans n≤m (m≤ms y x)}) ⟩
-        from n [] ⟨ O-ns , n≤ns ⟩ = ordered-[x]
-        from n (x ∷ xs) ⟨ ordered-x∷xs , n≤x∷xs ⟩ =
-          ordered-∷ (n≤x∷xs x (here refl)) ordered-x∷xs
+        from n [] ⟨ O-ns , n≤ns ⟩ = ascending-[x]
+        from n (x ∷ xs) ⟨ ascending-x∷xs , n≤x∷xs ⟩ =
+          ascending-∷ (n≤x∷xs x (here refl)) ascending-x∷xs
 
 open _⇔_
 
 
 
-drain-heap : ∀ {ns : List ℕ} {n : ℕ} -> (length ns is n) -> Heap ns -> ∃[ ms ] ns ⋈ ms × Ordered ms
-drain-heap {[]} {zero} pf [] = ⟨ [] , ⟨ [] , ordered-[] ⟩ ⟩
+drain-heap : ∀ {ns : List ℕ} {n : ℕ} -> (length ns is n) -> Heap ns -> ∃[ ms ] ns ⋈ ms × Ascending ms
+drain-heap {[]} {zero} pf [] = ⟨ [] , ⟨ [] , ascending-[] ⟩ ⟩
 drain-heap {z ∷ zs} {suc k} (length) h@(root n _ _ orig-order perm)
   with delete-min length h -- ⟨ n , from (⋈-∈ perm) (here refl) ⟩
 ... | ⟨ min , ⟨ ms , ⟨ newheap , ⟨ len , ⟨ perm1 , small ⟩ ⟩ ⟩ ⟩ ⟩ with drain-heap len newheap
 ... | ⟨ rest , ⟨ ms⋈rest , ordered ⟩ ⟩ = ⟨ min ∷ rest , ⟨ fullperm , fullorder ⟩ ⟩
   where smallest = λ y y∈rest → small (from (⋈-∈ perm1) (there (from (⋈-∈ ms⋈rest) y∈rest)))
-        fullorder = from (Ordered-≤ min rest) ⟨ ordered , smallest ⟩
+        fullorder = from (Ascending-≤ min rest) ⟨ ordered , smallest ⟩
         fullperm : z ∷ zs ⋈ min ∷ rest
         fullperm = 
            begin⋈
@@ -284,7 +266,7 @@ heap-size (root _ left right _ perm) with heap-size left | heap-size right
    ⟨ 1 + kₗ + kᵣ , length-perm (there (length-++-is lenₗ lenᵣ)) (sym-⋈ perm) ⟩
 
            -- 
-heapsort : (ns : List ℕ) -> ∃[ ms ] ns ⋈ ms × Ordered ms
+heapsort : (ns : List ℕ) -> ∃[ ms ] (ns ⋈ ms) × (Ascending ms)
 heapsort ns with heap-size (build-heap ns)
 ... | ⟨ _ , len ⟩ = drain-heap len (build-heap ns)
 
