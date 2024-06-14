@@ -682,16 +682,16 @@ cong-⋈-snoc : ∀ {A : Set} {xs ys : List A} {z : A}
 cong-⋈-snoc [] = refl-⋈
 cong-⋈-snoc (insert x pf) = insert (insert-snoc x) (cong-⋈-snoc pf)
 
-cong-⋈-++ : ∀ {A : Set} {xs ys zs : List A}
+cong-⋈-++ˡ : ∀ {A : Set} {xs ys zs : List A}
            -> xs ⋈ ys
            -> xs ++ zs ⋈ ys ++ zs
-cong-⋈-++ {xs = xs} {ys = ys} {zs = []} xs⋈ys rewrite ++-identityʳ xs | ++-identityʳ ys = xs⋈ys
-cong-⋈-++ {xs = xs} {ys = ys} {zs = z ∷ zs} pf = 
+cong-⋈-++ˡ {xs = xs} {ys = ys} {zs = []} xs⋈ys rewrite ++-identityʳ xs | ++-identityʳ ys = xs⋈ys
+cong-⋈-++ˡ {xs = xs} {ys = ys} {zs = z ∷ zs} pf = 
   begin⋈
     xs ++ z ∷ zs
   ⋈≡⟨ sym (++-assoc xs [ z ] zs) ⟩
     (xs ++ [ z ]) ++ zs
-  ⋈⟨ cong-⋈-++ (cong-⋈-snoc pf) ⟩
+  ⋈⟨ cong-⋈-++ˡ (cong-⋈-snoc pf) ⟩
     (ys ++ [ z ]) ++ zs
   ⋈≡⟨ ++-assoc ys [ z ] zs ⟩
     ys ++ z ∷ zs
