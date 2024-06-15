@@ -84,26 +84,40 @@ data Ascending : (List ℕ -> Set) where
                → Ascending (n₁ ∷ n₂ ∷ ns)
 ```
 
-asdf
+A nonempty list is sorted if an only if its first element is 
+the smallest and the tail is sorted.
 
 ```agda
-≤-congruence : ∀ {x y z : ℕ} -> (x ≤ y) -> (y ≡ z) -> (x ≤ z)
-≤-congruence pf refl = pf
-
 Ascending-≤ : ∀ (n : ℕ) (ns : List ℕ)
             -> Ascending (n ∷ ns) ⇔ (Ascending ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y))
 Ascending-≤ n ns = record { to = to n ns ; from = from n ns }
-  where to : ∀ (n : ℕ) (ns : List ℕ) -> Ascending (n ∷ ns) -> (Ascending ns × (∀ (y : ℕ) ->  (y ∈ ns) -> n ≤ y))
-        from : ∀ (n : ℕ) (ns : List ℕ) -> (Ascending ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y)) -> Ascending (n ∷ ns)
+  where to   : ∀ (n : ℕ) (ns : List ℕ)
+             → Ascending (n ∷ ns)
+             → (Ascending ns × (∀ (y : ℕ) → (y ∈ ns) → n ≤ y))
+        from : ∀ (n : ℕ) (ns : List ℕ)
+             → (Ascending ns × (∀ (y : ℕ) → (y ∈ ns) → n ≤ y))
+             → Ascending (n ∷ ns)
 
         to n [] ascending-[x] = ⟨ ascending-[] , (λ y ()) ⟩
         to n (m ∷ ms) (ascending-∷ n≤m pf) with to m ms pf
-        ... | ⟨ _ , m≤ms ⟩ = ⟨ pf , (λ y → λ{ (here x) → ≤-congruence n≤m (sym x)
+        ... | ⟨ _ , m≤ms ⟩ = ⟨ pf , (λ y → λ{ (here refl) → n≤m
                                             ; (there x) → ≤-trans n≤m (m≤ms y x)}) ⟩
         from n [] ⟨ O-ns , n≤ns ⟩ = ascending-[x]
         from n (x ∷ xs) ⟨ ascending-x∷xs , n≤x∷xs ⟩ =
           ascending-∷ (n≤x∷xs x (here refl)) ascending-x∷xs
 ```
+
+Type synonyms for sorting.
+
+```agda
+_sorted-is_ : List ℕ -> List ℕ -> Set
+_sorted-is_ ns ms = ns ⋈ ms × Ascending ms
+
+Sortfun : Set
+Sortfun = ∀ (ns : List ℕ) -> ∃[ ms ] ns sorted-is ms
+
+```
+
 
 ## Heaps
 
@@ -123,6 +137,14 @@ data Heap : List ℕ -> Set where
 ```
 
 Heap merge is the best.
+
+Of the two recursive calls to `merge-heaps`, only 
+one will ever be used, but placing them in the `with` clause
+somehow enables Agda's termination checker to figure out
+that the calls are OK.
+If the calls are split up, one under each outcome of `compare`,
+the termination checker throws up its hands.
+See <https://stackoverflow.com/questions/17910737/termination-check-on-list-merge>.
 
 ```agda
 open import Data.Sum using (_⊎_; inj₁; inj₂)
@@ -204,6 +226,19 @@ insert-length' here (there len) = len
 insert-length' (there ins) (there (there len)) = there (insert-length' ins (there len))
 ```
 
+The length of `xs ++ ys` is the sum of the lengths.
+
+```agda
+length-++-is : ∀ {A : Set} {xs ys : List A} {k1 k2 : ℕ}
+          -> length xs is k1
+          -> length ys is k2
+          -> length (xs ++ ys) is (k1 + k2)
+length-++-is [] l2 = l2
+length-++-is (there l1) l2 = there (length-++-is l1 l2)
+```
+
+
+
 And a list's tail is one shorter than the list.
 
 ```agda
@@ -269,39 +304,34 @@ build-heap (n ∷ ns) = insert-in-heap n (build-heap ns)
 ```
 
 
-more
+Draining a heap produces a sorted permutation of the heap's elements.
 
 ```agda
 open _⇔_
 
-
-
 drain-heap : ∀ {ns : List ℕ} {n : ℕ} -> (length ns is n) -> Heap ns -> ∃[ ms ] ns ⋈ ms × Ascending ms
 drain-heap {[]} {zero} pf [] = ⟨ [] , ⟨ [] , ascending-[] ⟩ ⟩
-drain-heap {z ∷ zs} {suc k} (length) h@(root n _ _ orig-order perm)
-  with delete-min length h -- ⟨ n , from (⋈-∈ perm) (here refl) ⟩
-... | ⟨ min , ⟨ ms , ⟨ newheap , ⟨ len , ⟨ perm1 , small ⟩ ⟩ ⟩ ⟩ ⟩ with drain-heap len newheap
-... | ⟨ rest , ⟨ ms⋈rest , ordered ⟩ ⟩ = ⟨ min ∷ rest , ⟨ fullperm , fullorder ⟩ ⟩
-  where smallest = λ y y∈rest → small (from (⋈-∈ perm1) (there (from (⋈-∈ ms⋈rest) y∈rest)))
+drain-heap {z ∷ zs} {suc k} length h@(root n _ _ orig-order perm)
+  with delete-min length h
+... | ⟨ min , ⟨ ms , ⟨ newheap , ⟨ shorter , ⟨ z∷zs⋈min∷ms , small ⟩ ⟩ ⟩ ⟩ ⟩
+         with drain-heap shorter newheap
+...         | ⟨ rest , ⟨ ms⋈rest , ordered ⟩ ⟩ = ⟨ min ∷ rest , ⟨ fullperm , fullorder ⟩ ⟩
+  where smallest = λ y y∈rest → small (from (⋈-∈ z∷zs⋈min∷ms) (there (from (⋈-∈ ms⋈rest) y∈rest)))
         fullorder = from (Ascending-≤ min rest) ⟨ ordered , smallest ⟩
         fullperm : z ∷ zs ⋈ min ∷ rest
         fullperm = 
            begin⋈
              z ∷ zs
-           ⋈⟨ perm1 ⟩ 
+           ⋈⟨ z∷zs⋈min∷ms ⟩ 
              min ∷ ms
            ⋈⟨ insert here ms⋈rest ⟩ 
              min ∷ rest
            ∎⋈
+```
 
+To implement heapsort, I have to compute the size of a heap.
              
-length-++-is : ∀ {A : Set} {xs ys : List A} {k1 k2 : ℕ}
-          -> length xs is k1
-          -> length ys is k2
-          -> length (xs ++ ys) is (k1 + k2)
-length-++-is [] l2 = l2
-length-++-is (there l1) l2 = there (length-++-is l1 l2)
-
+```agda
 heap-size : ∀ {ns : List ℕ} -> Heap ns -> ∃[ k ] length ns is k
 heap-size [] = ⟨ zero , [] ⟩
 heap-size (root _ left right _ perm) with heap-size left | heap-size right 
@@ -309,10 +339,13 @@ heap-size (root _ left right _ perm) with heap-size left | heap-size right
    ⟨ 1 + kₗ + kᵣ , length-perm (there (length-++-is lenₗ lenᵣ)) (sym-⋈ perm) ⟩
 
            -- 
-heapsort : (ns : List ℕ) -> ∃[ ms ] (ns ⋈ ms) × (Ascending ms)
+heapsort : (ns : List ℕ) -> ∃[ ms ] ns ⋈ ms × Ascending ms
 heapsort ns with heap-size (build-heap ns)
 ... | ⟨ _ , len ⟩ = drain-heap len (build-heap ns)
 ```
+
+## Mergesort
+
 
 
 
@@ -474,34 +507,3 @@ heapsort ns with heap-size (build-heap ns)
 
 
 
-## Standard Library
-
-Definitions similar to those in this chapter can be found in the standard library:
-```agda
-import Data.List using (List; _++_; length; reverse; map; foldr; downFrom)
-import Data.List.Relation.Unary.All using (All; []; _∷_)
-import Data.List.Relation.Unary.Any using (Any; here; there)
-import Data.List.Membership.Propositional using (_∈_)
-import Data.List.Properties
-  using (reverse-++-commute; map-compose; map-++-commute; foldr-++)
-  renaming (mapIsFold to map-is-foldr)
-import Algebra.Structures using (IsMonoid)
-import Relation.Unary using (Decidable)
-import Relation.Binary using (Decidable)
-```
-The standard library version of `IsMonoid` differs from the
-one given here, in that it is also parameterised on an equivalence relation.
-
-Both `Relation.Unary` and `Relation.Binary` define a version of `Decidable`,
-one for unary relations (as used in this chapter where `P` ranges over
-unary predicates) and one for binary relations (as used earlier, where `_≤_`
-ranges over a binary relation).
-
-## Unicode
-
-This chapter uses the following unicode:
-
-    ∷  U+2237  PROPORTION  (\::)
-    ⊗  U+2297  CIRCLED TIMES  (\otimes, \ox)
-    ∈  U+2208  ELEMENT OF  (\in)
-    ∉  U+2209  NOT AN ELEMENT OF  (\inn, \notin)
