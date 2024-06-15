@@ -653,8 +653,14 @@ module ⋈-Reasoning {A : Set} where
 
 ## Permutations and append
 
-To exchange the order of arguments to `xs ++ ys`, we must be able to find
-a way to insert between the two lists.
+When you have permutations, there are at least three ways to use `++` to make 
+more permutations:
+
+    xs ++ ys ⋈ ys ++ xs
+    xs ⋈ ys -> zs ++ xs ⋈ zs ++ ys
+    xs ⋈ ys -> xs ++ zs ⋈ ys ++ zs
+
+
 
 ```agda
 find-insertion : ∀ {A : Set} (x : A) (xs ys : List A)
@@ -663,7 +669,7 @@ find-insertion x [] ys = here
 find-insertion x (x₁ ∷ xs) ys = there (find-insertion x xs ys)
 
 swap-++ : ∀ {A : Set} (xs ys : List A)
-          -> xs ++ ys ⋈ ys ++ xs
+        -> xs ++ ys ⋈ ys ++ xs
 swap-++ [] ys rewrite ++-identityʳ ys = refl-⋈
 swap-++ (x ∷ xs) ys = insert (find-insertion x ys xs) (swap-++ xs ys)
 ```
@@ -743,22 +749,6 @@ cong-⋈-snoc : ∀ {A : Set} {xs ys : List A} {z : A}
            -> xs ++ [ z ] ⋈ ys ++ [ z ]
 cong-⋈-snoc [] = refl-⋈
 cong-⋈-snoc (insert x pf) = insert (insert-snoc x) (cong-⋈-snoc pf)
-
-cong-⋈-++ˡ : ∀ {A : Set} {xs ys zs : List A}
-           -> xs ⋈ ys
-           -> xs ++ zs ⋈ ys ++ zs
-cong-⋈-++ˡ {xs = xs} {ys = ys} {zs = []} xs⋈ys rewrite ++-identityʳ xs | ++-identityʳ ys = xs⋈ys
-cong-⋈-++ˡ {xs = xs} {ys = ys} {zs = z ∷ zs} pf = 
-  begin⋈
-    xs ++ z ∷ zs
-  ⋈≡⟨ sym (++-assoc xs [ z ] zs) ⟩
-    (xs ++ [ z ]) ++ zs
-  ⋈⟨ cong-⋈-++ˡ (cong-⋈-snoc pf) ⟩
-    (ys ++ [ z ]) ++ zs
-  ⋈≡⟨ ++-assoc ys [ z ] zs ⟩
-    ys ++ z ∷ zs
-  ∎⋈
-
 
 ```
 

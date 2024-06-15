@@ -90,26 +90,20 @@ open import Data.Sum using (_⊎_; inj₁; inj₂)
 
 open ⋈-Reasoning
 
-cong-⋈-++ʳ : ∀ {A : Set} {xs ys zs : List A}
-           -> xs ⋈ ys
-           -> zs ++ xs ⋈ zs ++ ys
-cong-⋈-++ʳ {zs = []} pf = pf
-cong-⋈-++ʳ {zs = z ∷ zs} pf = insert here (cong-⋈-++ʳ pf)
-
 merge-heaps : ∀ {ns ms : List ℕ} -> Heap ns -> Heap ms -> Heap (ns ++ ms)
 merge-heaps [] [] = []
 merge-heaps [] h@(root _ _ _ _ _) = h
 merge-heaps {ns = ns} h@(root _ _ _ _ _) [] rewrite ++-identityʳ ns = h
 merge-heaps {ns = ns} {ms = ms}
-            h₁@(root {xs = xs₁} {ys = ys₁} {ns = ns₁} n₁ l₁ r₁ small₁ perm1)
-            h₂@(root {xs = xs₂} {ys = ys₂} {ns = ns₂} n₂ l₂ r₂ small₂ perm2) 
+            h₁@(root {xs = xs₁} {ys = ys₁} {ns = ns₁} n₁ l₁ r₁ small₁ ns⋈n₁∷xs₁++ys₁)
+            h₂@(root {xs = xs₂} {ys = ys₂} {ns = ns₂} n₂ l₂ r₂ small₂ ms⋈n₂∷xs₂++ys₂) 
   with compare n₁ n₂ | merge-heaps r₁ h₂ | merge-heaps h₁ r₂
 ... | less n₁≤n₂ | h | _ = root n₁ l₁ h lemma2 lemma1
         where lemma1 : ns ++ ms ⋈ n₁ ∷ xs₁ ++ ys₁ ++ ms
               lemma2 : ∀ {m : ℕ} → m ∈ ns ++ ms → n₁ ≤ m
               lemma1 = begin⋈
                          ns ++ ms
-                       ⋈⟨ cong-⋈-++ˡ perm1 ⟩
+                       ⋈⟨ ++-⋈ʳ ns⋈n₁∷xs₁++ys₁ ⟩
                          (n₁ ∷ xs₁ ++ ys₁) ++ ms
                        ⋈≡⟨ refl ⟩
                          n₁ ∷ (xs₁ ++ ys₁) ++ ms
@@ -127,7 +121,7 @@ merge-heaps {ns = ns} {ms = ms}
               lemma2 : ∀ {m : ℕ} → m ∈ ns ++ ms → n₂ ≤ m
               lemma1 = begin⋈
                          ns ++ ms
-                       ⋈⟨ cong-⋈-++ʳ perm2 ⟩
+                       ⋈⟨ ++-⋈ˡ ms⋈n₂∷xs₂++ys₂ ⟩
                          ns ++ n₂ ∷ xs₂ ++ ys₂
                        ⋈⟨ swap-cons ns n₂ (xs₂ ++ ys₂)  ⟩
                          n₂ ∷ ns ++ xs₂ ++ ys₂
