@@ -21,6 +21,7 @@ open import Data.Bool using (Bool; true; false; T; _∧_; _∨_; not)
 open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _∸_; _≤_; s≤s; z≤n)
 open import Data.Nat.Properties using
   (+-assoc; +-identityˡ; +-identityʳ; *-assoc; *-identityˡ; *-identityʳ; *-distribʳ-+)
+open import Data.Nat.Properties using (≤-trans; ≤-refl)
 open import Relation.Nullary using (¬_; Dec; yes; no)
 open import Data.Product using (_×_; ∃; ∃-syntax) renaming (_,_ to ⟨_,_⟩)
 open import Data.Product using (Σ-syntax)
@@ -65,6 +66,45 @@ compare (suc m) (suc n) with compare m n
 ... | greater x = greater (s≤s x)
 ```
 
+## Sorting and ordering
+
+Definition of a sorted list of natural numbers:
+
+```agda
+data Ascending : (List ℕ -> Set) where
+  ascending-[]  : Ascending []
+
+  ascending-[x] : ∀ {n : ℕ}
+                → Ascending [ n ]
+
+  ascending-∷  : ∀ {n₁ n₂ : ℕ} {ns : List ℕ}
+               → n₁ ≤ n₂
+               → Ascending (n₂ ∷ ns) 
+               -------------------------------
+               → Ascending (n₁ ∷ n₂ ∷ ns)
+```
+
+asdf
+
+```agda
+≤-congruence : ∀ {x y z : ℕ} -> (x ≤ y) -> (y ≡ z) -> (x ≤ z)
+≤-congruence pf refl = pf
+
+Ascending-≤ : ∀ (n : ℕ) (ns : List ℕ)
+            -> Ascending (n ∷ ns) ⇔ (Ascending ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y))
+Ascending-≤ n ns = record { to = to n ns ; from = from n ns }
+  where to : ∀ (n : ℕ) (ns : List ℕ) -> Ascending (n ∷ ns) -> (Ascending ns × (∀ (y : ℕ) ->  (y ∈ ns) -> n ≤ y))
+        from : ∀ (n : ℕ) (ns : List ℕ) -> (Ascending ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y)) -> Ascending (n ∷ ns)
+
+        to n [] ascending-[x] = ⟨ ascending-[] , (λ y ()) ⟩
+        to n (m ∷ ms) (ascending-∷ n≤m pf) with to m ms pf
+        ... | ⟨ _ , m≤ms ⟩ = ⟨ pf , (λ y → λ{ (here x) → ≤-congruence n≤m (sym x)
+                                            ; (there x) → ≤-trans n≤m (m≤ms y x)}) ⟩
+        from n [] ⟨ O-ns , n≤ns ⟩ = ascending-[x]
+        from n (x ∷ xs) ⟨ ascending-x∷xs , n≤x∷xs ⟩ =
+          ascending-∷ (n≤x∷xs x (here refl)) ascending-x∷xs
+```
+
 ## Heaps
 
 The parameter to a heap lists the elements it contains.
@@ -85,7 +125,6 @@ data Heap : List ℕ -> Set where
 Heap merge is the best.
 
 ```agda
-open import Data.Nat.Properties using (≤-trans; ≤-refl)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 
 open ⋈-Reasoning
@@ -137,16 +176,23 @@ merge-heaps {ns = ns} {ms = ms}
               lemma2 {m} m∈list with to (Any-++-⇔ ns ms) m∈list
               ... | inj₁ m∈ms = ≤-trans n₂≤n₁ (small₁ m∈ms)
               ... | inj₂ m∈ns = small₂ m∈ns
+```
 
-heap-elements : ∀ {ns : List ℕ} -> Heap ns -> ∃[ ms ] ms ≡ ns
-heap-elements [] = ⟨ [] , refl ⟩
-heap-elements (root {ns = ns} n h h₁ x x₁) = ⟨ ns , refl ⟩
+To turn a heap into a sorted list, we have to know that the recursive call terminates.
+That means that `delete-min` has to return a proof that the returned
+heap is smaller than the argument heap.
+The size of a heap is the length of its list of elements.
+To make the structural recursion obvious, I define length as a relation.
 
+```agda
 data length_is_ {A : Set} : List A -> ℕ -> Set where
   [] : length [] is zero
   there : ∀ {a : A} {as : List A} {k : ℕ} -> length as is k -> length (a ∷ as) is (suc k)
+```
 
+Insertion grows a list by one, which I show in both directions.
 
+```agda
 insert-length : ∀ {A : Set} {x : A} {xs ys : List A} {k : ℕ}
               -> x ⊳ xs ≡ ys -> length xs is k -> length ys is (suc k)
 insert-length here len = there len
@@ -156,73 +202,76 @@ insert-length' : ∀ {A : Set} {x : A} {xs ys : List A} {k : ℕ}
               -> x ⊳ xs ≡ ys -> length ys is suc k -> length xs is k
 insert-length' here (there len) = len
 insert-length' (there ins) (there (there len)) = there (insert-length' ins (there len))
+```
 
+And a list's tail is one shorter than the list.
 
-
-
+```agda
 length-pred :  ∀ {A : Set} {x : A} {xs : List A} {k : ℕ}
             -> length (x ∷ xs) is (suc k) -> length xs is k
 length-pred (there pf) = pf
+```
 
+Permuting a list doesn't change its length.
+
+```agda
 length-perm : ∀ {A : Set} {xs ys : List A} {k : ℕ} -> length xs is k -> xs ⋈ ys -> length ys is k
 length-perm [] [] = []
 length-perm (there pf) (insert here perm) = there (length-perm pf perm)
 length-perm (there (there as-l-k)) (insert (there a⊳ys≡zs) (insert x⊳xs≡ys perm))
    = there (insert-length a⊳ys≡zs (length-pred (insert-length x⊳xs≡ys (length-perm as-l-k perm))))
+```
 
+I'm not quite sure why I need this function, 
+because a list should be manifestly equal to itself.
+But extracting the elements is necessary for `delete-min`
+
+```agda
+heap-elements : ∀ {ns : List ℕ} -> Heap ns -> ∃[ ms ] ms ≡ ns
+heap-elements [] = ⟨ [] , refl ⟩
+heap-elements (root {ns = ns} n h h₁ x x₁) = ⟨ ns , refl ⟩
+```
+
+Given a heap `h` of type `Heap ns`, `delete-min` finds `m`, the smallest element of `ns`,
+and `ms`, a list of all the remaining elements.
+And it produces a new heap containing `ms`, plus proofs of my claims about `m` and `ms`,
+plus a proof that the heap has shrunk.
+
+```agda
 delete-min : ∀ {ns : List ℕ} {k : ℕ}
            -> length ns is suc k
            -> (h : Heap ns)
-           -> ∃[ m ] ∃[ ms ] Heap ms × length ms is k × (ns ⋈ m ∷ ms) × (∀ {z : ℕ} -> (z ∈ ns) -> m ≤ z)
-delete-min (len) (root n left right small perm) with heap-elements (merge-heaps left right)
-... | ⟨ elements , refl ⟩ =
-        ⟨ n , ⟨ elements , ⟨ newheap , ⟨ length-pred (length-perm len perm) , ⟨ perm , small ⟩ ⟩ ⟩ ⟩ ⟩
-  where newheap = merge-heaps left right
+           -> ∃[ m ] ∃[ ms ] Heap ms
+                           × length ms is k
+                           × (ns ⋈ m ∷ ms)
+                           × (∀ {z : ℕ} -> (z ∈ ns) -> m ≤ z)
 
+delete-min |ns|≡suc-k (root m left right n≤xs++ys ns⋈n∷xs++ys)
+  with heap-elements (merge-heaps left right)
+... | ⟨ ms , refl ⟩ =
+        ⟨ m , ⟨ ms , ⟨ newheap , ⟨ good-length , ⟨ ns⋈n∷xs++ys , n≤xs++ys ⟩ ⟩ ⟩ ⟩ ⟩
+  where newheap = merge-heaps left right
+        good-length = length-pred (length-perm |ns|≡suc-k ns⋈n∷xs++ys)
+```
+
+To sort a list, first build a heap containing the elements of the list.
+
+```agda
 singleton-heap : ∀ (n : ℕ) -> Heap [ n ]
 singleton-heap n = root n [] [] (λ { (here refl) → ≤-refl}) refl-⋈
 
 insert-in-heap : ∀ {ns : List ℕ} -> (n : ℕ) -> Heap ns -> Heap (n ∷ ns)
 insert-in-heap n h = merge-heaps (singleton-heap n) h
 
-
 build-heap : (ns : List ℕ) -> Heap ns
 build-heap [] = []
 build-heap (n ∷ ns) = insert-in-heap n (build-heap ns)
-
-----------------------------------------------------------------
-
-data Ascending : (List ℕ -> Set) where
-
-  ascending-[]  : Ascending []
-
-  ascending-[x] : ∀ {n : ℕ}
-                → Ascending [ n ]
-
-  ascending-∷  : ∀ {n₁ n₂ : ℕ} {ns : List ℕ}
-               → n₁ ≤ n₂
-               → Ascending (n₂ ∷ ns) 
-               -------------------------------
-               → Ascending (n₁ ∷ n₂ ∷ ns)
+```
 
 
-≤-congruence : ∀ {x y z : ℕ} -> (x ≤ y) -> (y ≡ z) -> (x ≤ z)
-≤-congruence pf refl = pf
+more
 
-Ascending-≤ : ∀ (n : ℕ) (ns : List ℕ)
-            -> Ascending (n ∷ ns) ⇔ (Ascending ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y))
-Ascending-≤ n ns = record { to = to n ns ; from = from n ns }
-  where to : ∀ (n : ℕ) (ns : List ℕ) -> Ascending (n ∷ ns) -> (Ascending ns × (∀ (y : ℕ) ->  (y ∈ ns) -> n ≤ y))
-        from : ∀ (n : ℕ) (ns : List ℕ) -> (Ascending ns × (∀ (y : ℕ) -> (y ∈ ns) -> n ≤ y)) -> Ascending (n ∷ ns)
-
-        to n [] ascending-[x] = ⟨ ascending-[] , (λ y ()) ⟩
-        to n (m ∷ ms) (ascending-∷ n≤m pf) with to m ms pf
-        ... | ⟨ _ , m≤ms ⟩ = ⟨ pf , (λ y → λ{ (here x) → ≤-congruence n≤m (sym x)
-                                            ; (there x) → ≤-trans n≤m (m≤ms y x)}) ⟩
-        from n [] ⟨ O-ns , n≤ns ⟩ = ascending-[x]
-        from n (x ∷ xs) ⟨ ascending-x∷xs , n≤x∷xs ⟩ =
-          ascending-∷ (n≤x∷xs x (here refl)) ascending-x∷xs
-
+```agda
 open _⇔_
 
 
@@ -263,6 +312,8 @@ heap-size (root _ left right _ perm) with heap-size left | heap-size right
 heapsort : (ns : List ℕ) -> ∃[ ms ] (ns ⋈ ms) × (Ascending ms)
 heapsort ns with heap-size (build-heap ns)
 ... | ⟨ _ , len ⟩ = drain-heap len (build-heap ns)
+```
+
 
 
             
@@ -421,7 +472,7 @@ heapsort ns with heap-size (build-heap ns)
 ----
 
 
-```
+
 
 ## Standard Library
 
