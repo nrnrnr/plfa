@@ -28,6 +28,7 @@ open import Data.Product using (Σ-syntax)
 open import Function using (_∘_)
 open import Level using (Level)
 open import cs.plfa.part1.Isomorphism using (_≃_; _⇔_)
+open import Data.Empty using (⊥; ⊥-elim)
 
 open import Data.List using (List; _++_; length; map; foldr; downFrom; []; _∷_)
 open import Data.List.Relation.Unary.All using (All; []; _∷_)
@@ -106,6 +107,16 @@ Ascending-≤ n ns = record { to = to n ns ; from = from n ns }
         from n (x ∷ xs) ⟨ ascending-x∷xs , n≤x∷xs ⟩ =
           ascending-∷ (n≤x∷xs x (here refl)) ascending-x∷xs
 ```
+
+The tail of a sorted list is sorted.
+
+```agda
+ascending-tail : ∀ {x : ℕ} {xs : List ℕ} -> Ascending (x ∷ xs) -> Ascending xs
+ascending-tail ascending-[x] = ascending-[]
+ascending-tail (ascending-∷ x ascending-[x]) = ascending-[x]
+ascending-tail (ascending-∷ x (ascending-∷ x₁ pf)) = ascending-∷ x₁ pf
+```
+
 
 Type synonyms for sorting.
 
@@ -346,164 +357,142 @@ heapsort ns with heap-size (build-heap ns)
 
 ## Mergesort
 
+Mergesort leaves bread crumbs showing that
+the merge always takes the smaller element.
+
+```agda
+data merged (A : Set) (_le_ : A -> A -> Set) : (xs ys zs : List A) → Set where
+  -- the merge of xs and ys is zs
+
+  [] :
+      --------------
+      merged A _le_ [] [] []
+
+  left-∷-[] : ∀ {x xs zs}
+    → merged A _le_ xs [] zs
+      --------------------------
+    → merged A _le_ (x ∷ xs) [] (x ∷ zs)
+
+  left-∷-∷ : ∀ {x y xs ys zs}
+    → x le y
+    → merged A _le_ xs (y ∷ ys) zs
+      --------------------------
+    → merged A _le_ (x ∷ xs) (y ∷ ys) (x ∷ zs)
+
+  right-[]-∷ : ∀ {y ys zs}
+    → merged A _le_ [] ys zs
+      --------------------------
+    → merged A _le_ [] (y ∷ ys) (y ∷ zs)
+
+  right-∷-∷ : ∀ {x y xs ys zs}
+    → y le x
+    → merged A _le_ (x ∷ xs) ys zs
+      --------------------------
+    → merged A _le_ (x ∷ xs) (y ∷ ys) (y ∷ zs)
+
+merged≤ : ∀ (xs ys zs : List ℕ) -> Set
+merged≤ = merged (ℕ) (_≤_)
+
+```
+
+The merge itself is straightforward.
+
+```agda
+merge≤ : ∀ (xs ys : List ℕ) -> ∃[ zs ] (merged≤ xs ys zs)
+merge≤ [] [] = ⟨ [] , [] ⟩
+merge≤ (x ∷ xs) [] with merge≤ xs [] 
+... | ⟨ zs , merge ⟩ = ⟨ (x ∷ zs) , (left-∷-[] merge) ⟩
+merge≤ [] (y ∷ ys) with merge≤ [] ys
+... | ⟨ zs , merge ⟩ = ⟨ (y ∷ zs) , (right-[]-∷ merge) ⟩
+merge≤ (x ∷ xs) (y ∷ ys) with compare x y | merge≤ xs (y ∷ ys) | merge≤ (x ∷ xs) ys
+... | less x≤y | ⟨ zs , m ⟩ | _ = ⟨ x ∷ zs , left-∷-∷ x≤y m ⟩
+... | greater y≤x | _ | ⟨ zs , m ⟩ = ⟨ (y ∷ zs) , right-∷-∷ y≤x m ⟩
+```
+
+And merging creates a permutation.
+```agda
+merge-permutes : ∀ {A : Set} {le : A -> A -> Set} {xs ys zs : List A}
+               -> merged A le xs ys zs
+               -> xs ++ ys ⋈ zs
+merge-permutes [] = []
+merge-permutes (left-∷-[] pf)   = insert here (merge-permutes pf)
+merge-permutes (left-∷-∷ x pf)  = insert here (merge-permutes pf)
+merge-permutes (right-[]-∷ pf)  = insert here (merge-permutes pf)
+merge-permutes {xs = xs} {ys = y ∷ ys} (right-∷-∷ _ pf)
+   = trans-⋈ (swap-cons xs y ys) (insert here (merge-permutes pf))
+
+cong-Ascending : ∀ {xs ys : List ℕ} -> (xs ≡ ys) -> (Ascending xs) -> Ascending ys
+cong-Ascending refl pf = pf
+
+cong-∈ : ∀ {A : Set} {xs ys : List A} {z : A} -> xs ≡ ys -> z ∈ xs -> z ∈ ys
+cong-∈ refl pf = pf
+
+merged≤-left-≡ : {xs zs : List ℕ} -> merged≤ xs [] zs -> xs ≡ zs
+merged≤-left-≡ [] = refl
+merged≤-left-≡ (left-∷-[] pf) rewrite (merged≤-left-≡ pf) = refl
+
+merged-only-xs-ys : ∀ {xs ys zs : List ℕ} -> merged≤ xs ys zs ->
+                    ∀ (z : ℕ) -> z ∈ zs -> z ∈ xs ⊎ z ∈ ys
+merged-only-xs-ys [] z = λ ()
+merged-only-xs-ys (left-∷-[] pf) z (here x) = inj₁ (here x)
+merged-only-xs-ys (left-∷-[] pf) z (there z∈zs) with merged-only-xs-ys pf z z∈zs 
+... | inj₁ z∈xs = inj₁ (there z∈xs)
+merged-only-xs-ys (right-[]-∷ pf) z (here x) = inj₂ (here x)
+merged-only-xs-ys (right-[]-∷ pf) z (there z∈zs) with merged-only-xs-ys pf z z∈zs 
+... | inj₂ z∈xs = inj₂ (there z∈xs)
+
+merged-only-xs-ys (left-∷-∷ _ pf) z (here h) = inj₁ (here h)
+merged-only-xs-ys (left-∷-∷ _ pf) z (there z∈zs) with merged-only-xs-ys pf z z∈zs 
+... | inj₁ z∈xs = inj₁ (there z∈xs)
+... | inj₂ z∈ys = inj₂ z∈ys
+
+merged-only-xs-ys (right-∷-∷ _ pf) z (here h) = inj₂ (here h)
+merged-only-xs-ys (right-∷-∷ _ pf) z (there z∈zs) with merged-only-xs-ys pf z z∈zs 
+... | inj₁ z∈xs = inj₁ z∈xs
+... | inj₂ z∈ys = inj₂ (there z∈ys)
 
 
 
-            
---    -> ∃[ n ] n ∈ ns
---    -> ∃[ n ] n ∈ ns × (∀ {m : ℕ} -> m ∈ ns -> n ≤ m)
---min {ns} (root {xs = xs} {ys = ys} n left right small-l small-r perm) _ = ⟨ n , ⟨ n∈ns , smallest
+lemma9 : ∀ {ys zs : List ℕ}
+       -> merged≤ [] ys zs
+       -> ys ≡ zs
+lemma9 [] = refl
+lemma9 (right-[]-∷ pf) = cong (_∷_ _) (lemma9 pf)
 
-----data STree {A : Set} : (zs : List A) -> Set where
-----  [] : STree []
-----  [x] : ∀ (x : A) -> STree ([ x ])
-----  fork : ∀ {xs ys ns : List A} -> STree xs -> STree ys -> Permutation++ ns xs ys -> STree ns
-----
-----
-----pswap : ∀ {A : Set} {xs ys zs : List A} -> Permutation++ xs ys zs -> Permutation++ xs zs ys
-----pswap [] = []
-----pswap (here p) = there-right (here (pswap p))
-----pswap (there-left p) = there-right (pswap p)
-----pswap (there-right p) = there-left (pswap p)
-----
-----perm-symmetric : ∀ {A : Set} {zs zs' : List A} -> Permutation++ zs [] zs' -> Permutation++ zs' [] zs
-----perm-symmetric [] = []
-----perm-symmetric (here p) = here (perm-symmetric p)
-----perm-symmetric (there-left p) = {!!}
-----
-----
-----tree-∷ : ∀ {A : Set} -> (x : A) -> {ns : List A} -> (STree ns) -> STree (x ∷ ns)
-----tree-∷ x [] = [x] x
-----tree-∷ x ([x] y) = fork ([x] x) ([x] y) (there-right (here (here [])))
-----tree-∷ x (fork xs ys p) = fork (tree-∷ x ys) xs (pswap (here p))
-----
-----tree-of-list : ∀ {A : Set} -> (xs : List A) -> STree xs
-----tree-of-list [] = []
-----tree-of-list (x ∷ xs) = tree-∷ x (tree-of-list xs)
-----
-----empty-perm-left' : ∀ {A : Set} (y : A) (ys zs : List A) -> ¬ (Permutation++ [] (y ∷ ys) zs)
-----empty-perm-right' : ∀ {A : Set} (y : A) (ys zs : List A) -> ¬ (Permutation++ [] zs (y ∷ ys))
-----
-----empty-perm-left' y ys (z ∷ zs) (there-left pf) = empty-perm-left' z (y ∷ ys) zs pf
-----empty-perm-left' y ys (zs) (there-right pf) = empty-perm-right' y zs ys pf
-----empty-perm-right' y ys zs (there-left pf) = empty-perm-left' y zs ys pf
-----empty-perm-right' y ys (z ∷ zs) (there-right pf) = empty-perm-right' z (y ∷ ys) zs pf
-----
-----empty-perm-left : ∀ {A : Set} {y : A} {ys zs : List A} -> ¬ (Permutation++ [] (y ∷ ys) zs)
-----empty-perm-left {A} {y} {ys} {zs} = empty-perm-left' y ys zs
-----
-----
-------perm-lemma-5 : ∀ {A : Set} {xs ys zs xs' : List A}
-------             -> Permutation++ xs ⋈ xs'
-------             -> zs ⋈ (shunt xs ys)
-------             -> zs ⋈ (shunt xs' ys)
-----
-----perm-find-z : ∀ {A : Set} {xs ys zs : List A} (z : A)
-----          -> Permutation++ (z ∷ zs) xs ys
-----          -> ∃[ xs' ] ∃[ ys' ] Permutation++ zs xs' ys'
-----perm-find-z _ (here {zs} {xs} {ys} {x} pf) = ⟨ xs , ⟨ ys , pf ⟩ ⟩
-----perm-find-z z (there-left pf) = perm-find-z z pf
-----perm-find-z z (there-right pf) = perm-find-z z pf
-----
-----
-----perm-cons : ∀ {A : Set} {z : A} {xs ys : List A}
-----          -> xs ⋈ ys -> (z ∷ xs) ⋈ (z ∷ ys)
-----perm-cons (permutation x) = permutation (here x)
-----
-----perm-swap++ : ∀ {A : Set} {y1 y2 : A} {xs ys zs : List A}
-----          -> Permutation++ zs xs (y1 ∷ y2 ∷ ys)
-----          -> Permutation++ zs xs (y2 ∷ y1 ∷ ys)
-----perm-swap++ (here pf) = there-left (here (there-right pf))
-----perm-swap++ (there-left (here pf)) = here (there-left pf)
-----perm-swap++ (there-left (there-left pf)) = {!!}
-----perm-swap++ (there-left (there-right pf)) = perm-swap++ pf
-----perm-swap++ (there-right pf) = {!!}
-----
-------canonical-perm : ∀ {A : Set} {xs xs' : List A}
-------               -> xs ⋈ xs'
-------               -> Permutation++ xs [] xs'
-------canonical-perm (permutation []) = {!!}
-------canonical-perm (permutation (here pf)) = {!!}
-------canonical-perm (permutation (there-left pf)) = {!!}
-----
-----find-element-perm : ∀ {A : Set} {x : A} (xs : List A) -> (x ∈ xs)
-----                  -> ∃[ zs ] xs ⋈ (x ∷ zs)
-----find-element-perm (x ∷ xs) (here refl) = ⟨ xs , self-permutation (x ∷ xs) ⟩
-----find-element-perm { x = y } (x ∷ xs) (there y∈xs) with find-element-perm xs y∈xs
-----... | ⟨ xs' , perm' ⟩ = ⟨ x ∷ xs' , {!!} ⟩
-----
-----
-----
-----perm-find-x : ∀ {A : Set} {xs ys zs : List A} (x : A)
-----          -> Permutation++ zs (x ∷ xs) ys
-----          -> ∃[ zs' ] Permutation++ zs' xs ys
-----perm-find-x {zs = zs} x perm 
-----        with (_⇔_.from (perm-membership (there-left perm)) (inj₂ (here refl)))
-----... | x∈zs with find-element-perm zs x∈zs
-----... | ⟨ zs' , permutation perm' ⟩ = ⟨ zs' , {!!} ⟩
-------perm-find-x x (there-left pf) = {!!}
-------perm-find-x x (there-right pf) = {!!}
-----
-----
-----
-----perm-swap : ∀ {A : Set} {y1 y2 : A} {xs ys : List A}
-----          -> xs ⋈ (y1 ∷ y2 ∷ ys)
-----          -> xs ⋈ (y2 ∷ y1 ∷ ys)
-----perm-swap (permutation (here pf)) = permutation (there-left (here (there-right pf)))
-----perm-swap {ys = []} (permutation (there-left (here pf))) = permutation (here (there-left pf))
-----perm-swap {ys = []} (permutation (there-left (there-left (there-right pf)))) =
-----  perm-swap (permutation (there-left pf))
-----perm-swap {ys = []} (permutation (there-left (there-right pf))) = perm-swap (permutation pf)
-----perm-swap {ys = z ∷ zs} (permutation (there-left {xs} {[]} {(z1 ∷ z2 ∷ zs)} {y} pf)) =
-----   permutation {!!}
-------... | thing = permutation {!!}
-----
-----perm-find : ∀ {A : Set} {as : List A}
-----          -> ∀ {a : A} -> a ∈ as -> ∃[ as' ] as ⋈ (a ∷ as')
-----perm-find (here {x} {xs} refl) = ⟨ xs , self-permutation (x ∷ xs)  ⟩
-----perm-find {A} {as} {a} (there {x} {xs} pf) with perm-find pf
-----... | ⟨ ys , pys ⟩ = ⟨ (x ∷ ys) , perm-swap (perm-cons pys) ⟩
-----
-----open import Data.Empty using (⊥-elim)
-----
-----perm-lemma-4 : ∀ {A : Set} {xs ys zs xs' : List A}
-----             -> xs ⋈ xs'
-----             -> zs ⋈ (shunt xs ys)
-----             -> zs ⋈ (shunt xs' ys)
-------perm-lemma-4 xs⋈xs' zs⋈Rxs++ys = {!!}
-----perm-lemma-4 (permutation xs⋈xs') (permutation zs⋈Rxs++ys) = permutation {!!}
-----
-----perm-lemma-3 : ∀ {A : Set} {xs ys zs xs' : List A}
-----             -> xs ⋈ xs'
-----             -> Permutation++ zs xs ys
-----             -> Permutation++ zs xs' ys
-----perm-lemma-3 (permutation []) [] = []
-----perm-lemma-3 (permutation (there-left pf)) [] = ⊥-elim (empty-perm-left pf)
-----perm-lemma-3 xs⋈xs' (here zxy) = here (perm-lemma-3 xs⋈xs' zxy)
-----perm-lemma-3 xs⋈xs' (there-left {xs = yyy} {y = y} zxy) 
-----  = there-left {!!}
-----perm-lemma-3 (permutation x) (there-right zxy) = {!!}
-----
-----perm-lemma-2 : ∀ {xs ys zs xs' ys' zs' : List ℕ}
-----             -> xs ⋈ xs'
-----             -> ys ⋈ ys'
-----             -> Permutation++ zs' xs' ys'
-----             -> Permutation++ zs xs ys
-----             -> zs ⋈ zs'
-------perm-lemma-2 xs⋈xs' ys⋈ys' zxy' zxy = {!!}
-----perm-lemma-2 xs⋈xs' ys⋈ys' zxy' zxy = {!!}             
-----
-----
-----perm-lemma-1 : ∀ {xs ys zs xs' ys' zs' : List ℕ}
-----             -> xs ⋈ xs'
-----             -> ys ⋈ ys'
-----             -> Permutation++ zs' xs' ys'
-----             -> zs ⋈ zs'
-----perm-lemma-1  = {!!}
-----
-----
-----
+lemma8 : ∀ {xs zs : List ℕ}
+       -> merged≤ xs [] zs
+       -> xs ≡ zs
+lemma8 [] = refl
+lemma8 (left-∷-[] pf) = cong (_∷_ _) (lemma8 pf)
 
 
+merge-ordered : ∀ {xs ys zs : List ℕ} -> Ascending xs -> Ascending ys -> merged≤ xs ys zs
+              -> Ascending zs
+merge-ordered ascending-[] ascending-[] [] = ascending-[]
+merge-ordered xs≤ ascending-[] pf with lemma8 pf
+... | refl = xs≤
+merge-ordered ascending-[] ys≤ pf with lemma9 pf
+... | refl = ys≤
 
+merge-ordered oxs oys (left-∷-∷ {x} {y} {xs} {ys} {zs} x≤y m) = 
+                                        from (Ascending-≤ x zs) ⟨ ozs , x≤zs ⟩
+  where ozs : Ascending zs
+        x≤zs : ∀ (y : ℕ) -> y ∈ zs -> x ≤ y
+        x≤xs : ∀ (y : ℕ) -> y ∈ xs -> x ≤ y
+        ozs = merge-ordered (ascending-tail oxs) oys m
+        x≤xs = Data.Product.Σ.proj₂ (_⇔_.to (Ascending-≤ x xs) oxs)
+        y≤ys = Data.Product.Σ.proj₂ (_⇔_.to (Ascending-≤ y ys) oys)
+        x≤zs v v∈zs with merged-only-xs-ys m v v∈zs 
+        ... | inj₁ v∈xs = x≤xs v v∈xs
+        ... | inj₂ (here refl) = x≤y
+        ... | inj₂ (there v∈ys) = ≤-trans x≤y (y≤ys v v∈ys)
 
+merge-ordered xs≤ ys≤ (right-∷-∷ {y = y} {zs = zs} y≤x m) 
+  with to (Ascending-≤ _ _) xs≤ | to (Ascending-≤ _ _) ys≤
+... | ⟨ _ , big-xs ⟩ | ⟨ _ , big-ys ⟩ = 
+         from (Ascending-≤ y zs) ⟨ merge-ordered xs≤ (ascending-tail ys≤) m , big-zs ⟩
+      where big-zs : ∀ (z : ℕ) → z ∈ zs → y ≤ z
+            big-zs z z∈zs with merged-only-xs-ys m z z∈zs
+            ... | inj₁ (here refl) = y≤x
+            ... | inj₁ (there z∈xs) = ≤-trans y≤x (big-xs _ z∈xs)
+            ... | inj₂ z∈ys = big-ys _ z∈ys
