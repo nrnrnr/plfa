@@ -559,3 +559,26 @@ mergesort : ∀ (ns : List ℕ) -> ns Sorted
 mergesort ns = sort-tree (tree-of-list ns)
 ```
 
+
+## Insertion sort
+
+```
+insert≤ : ∀ (n : ℕ) (ns : List ℕ)
+       -> Ascending ns
+       -> (n ∷ ns) Sorted
+insert≤ n [] pf = sorted-as [ n ] [x] refl-⋈
+insert≤ n (m ∷ ms) m∷ms≤ with compare n m
+... | less n≤m = sorted-as (n ∷ m ∷ ms) (ascending-∷ n≤m m∷ms≤) refl-⋈
+... | greater m≤n with insert≤ n ms (ascending-tail m∷ms≤)
+...       | sorted-as zs zs≤ zs⋈n∷ms = sorted-as (m ∷ zs) all≤ (insert (there here) zs⋈n∷ms)
+  where big-n∷ms : ∀ (y : ℕ) -> y ∈ n ∷ ms -> m ≤ y
+        big-n∷ms y (here refl) = m≤n -- y ≡ n
+        big-n∷ms y (there y∈ms) with to (Ascending-≤ m ms) m∷ms≤
+        ... | ⟨ _ , big-ms ⟩ = big-ms y y∈ms
+
+        big-zs : ∀ (y : ℕ) -> y ∈ zs -> m ≤ y
+        big-zs y y∈zs = big-n∷ms y (to (⋈-∈ zs⋈n∷ms) y∈zs)
+
+        all≤ : Ascending (m ∷ zs)
+        all≤ = from (Ascending-≤ m zs) ⟨ zs≤ , big-zs ⟩
+```
