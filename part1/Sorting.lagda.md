@@ -73,9 +73,9 @@ Definition of a sorted list of natural numbers:
 
 ```agda
 data Ascending : (List ℕ -> Set) where
-  ascending-[]  : Ascending []
+  []  : Ascending []
 
-  ascending-[x] : ∀ {n : ℕ}
+  [x] : ∀ {n : ℕ}
                 → Ascending [ n ]
 
   ascending-∷  : ∀ {n₁ n₂ : ℕ} {ns : List ℕ}
@@ -99,11 +99,11 @@ Ascending-≤ n ns = record { to = to n ns ; from = from n ns }
              → (Ascending ns × (∀ (y : ℕ) → (y ∈ ns) → n ≤ y))
              → Ascending (n ∷ ns)
 
-        to n [] ascending-[x] = ⟨ ascending-[] , (λ y ()) ⟩
+        to n [] [x] = ⟨ [] , (λ y ()) ⟩
         to n (m ∷ ms) (ascending-∷ n≤m pf) with to m ms pf
         ... | ⟨ _ , m≤ms ⟩ = ⟨ pf , (λ y → λ{ (here refl) → n≤m
                                             ; (there x) → ≤-trans n≤m (m≤ms y x)}) ⟩
-        from n [] ⟨ O-ns , n≤ns ⟩ = ascending-[x]
+        from n [] ⟨ O-ns , n≤ns ⟩ = [x]
         from n (x ∷ xs) ⟨ ascending-x∷xs , n≤x∷xs ⟩ =
           ascending-∷ (n≤x∷xs x (here refl)) ascending-x∷xs
 ```
@@ -112,21 +112,18 @@ The tail of a sorted list is sorted.
 
 ```agda
 ascending-tail : ∀ {x : ℕ} {xs : List ℕ} -> Ascending (x ∷ xs) -> Ascending xs
-ascending-tail ascending-[x] = ascending-[]
-ascending-tail (ascending-∷ x ascending-[x]) = ascending-[x]
+ascending-tail [x] = []
+ascending-tail (ascending-∷ x [x]) = [x]
 ascending-tail (ascending-∷ x (ascending-∷ x₁ pf)) = ascending-∷ x₁ pf
 ```
 
 
-Type synonyms for sorting.
+A sort function is given a list `ns` and computes a list `zs`
+such that `zs` is `ns` sorted.
 
 ```agda
-_sorted-is_ : List ℕ -> List ℕ -> Set
-_sorted-is_ ns ms = ns ⋈ ms × Ascending ms
-
-Sortfun : Set
-Sortfun = ∀ (ns : List ℕ) -> ∃[ ms ] ns sorted-is ms
-
+data _Sorted : List ℕ -> Set where
+  sorted-as : ∀ {ns : List ℕ} -> ∀ (zs : List ℕ) -> Ascending zs -> zs ⋈ ns -> ns Sorted
 ```
 
 
@@ -321,7 +318,7 @@ Draining a heap produces a sorted permutation of the heap's elements.
 open _⇔_
 
 drain-heap : ∀ {ns : List ℕ} {n : ℕ} -> (length ns is n) -> Heap ns -> ∃[ ms ] ns ⋈ ms × Ascending ms
-drain-heap {[]} {zero} pf [] = ⟨ [] , ⟨ [] , ascending-[] ⟩ ⟩
+drain-heap {[]} {zero} pf [] = ⟨ [] , ⟨ [] , [] ⟩ ⟩
 drain-heap {z ∷ zs} {suc k} length h@(root n _ _ orig-order perm)
   with delete-min length h
 ... | ⟨ min , ⟨ ms , ⟨ newheap , ⟨ shorter , ⟨ z∷zs⋈min∷ms , small ⟩ ⟩ ⟩ ⟩ ⟩
@@ -468,10 +465,10 @@ lemma8 (left-∷-[] pf) = cong (_∷_ _) (lemma8 pf)
 
 merge-ordered : ∀ {xs ys zs : List ℕ} -> Ascending xs -> Ascending ys -> merged≤ xs ys zs
               -> Ascending zs
-merge-ordered ascending-[] ascending-[] [] = ascending-[]
-merge-ordered xs≤ ascending-[] pf with lemma8 pf
+merge-ordered [] [] [] = []
+merge-ordered xs≤ [] pf with lemma8 pf
 ... | refl = xs≤
-merge-ordered ascending-[] ys≤ pf with lemma9 pf
+merge-ordered [] ys≤ pf with lemma9 pf
 ... | refl = ys≤
 
 merge-ordered oxs oys (left-∷-∷ {x} {y} {xs} {ys} {zs} x≤y m) = 
@@ -496,3 +493,65 @@ merge-ordered xs≤ ys≤ (right-∷-∷ {y = y} {zs = zs} y≤x m)
             ... | inj₁ (here refl) = y≤x
             ... | inj₁ (there z∈xs) = ≤-trans y≤x (big-xs _ z∈xs)
             ... | inj₂ z∈ys = big-ys _ z∈ys
+```
+
+Splitting a list
+
+The recursion in merge sort is subtle, and it is easy to get wrong when coding.
+Merge sort splits a list into two smaller lists, and if the code
+is botched, the lists might *not* be smaller, in which case the recursion goes
+on forever.
+I address this problem with a new proposition `Split zs`, which
+is satisfied either if `zs` is split into two smaller pieces
+or if it is too short to need splitting (and therefore already 
+totally ordered).
+
+```agda
+data Split {A : Set} : (zs : List A) -> Set where
+  [] : Split []
+  [x] : ∀ (x : A) -> Split ([ x ])
+  fork : ∀ {xs ys zs : List A} -> Split xs -> Split ys -> xs ++ ys ⋈ zs -> Split zs
+```
+
+Once the splitting process is known terminate, merge sort is
+relatively straightforward.
+
+```agda
+sort-tree : ∀ {ns : List ℕ} -> Split ns -> ns Sorted
+sort-tree [] = sorted-as [] [] []
+sort-tree ([x] x) = sorted-as [ x ] [x] (insert here [])
+sort-tree {ns} (fork {xs = vs} {ys = ws} left right vs++ws⋈ns)
+  with sort-tree left | sort-tree right
+...  | sorted-as xs xs≤ pxs | sorted-as ys ys≤ pys with merge≤ xs ys
+...       | ⟨ zs , merged ⟩ with merge-permutes merged 
+...            | xs++ys⋈zs = 
+     sorted-as zs (merge-ordered xs≤ ys≤ merged) zs⋈ns
+   where zs⋈ns : zs ⋈ ns
+         zs⋈ns =
+           begin⋈
+             zs
+           ⋈⟨ sym-⋈ xs++ys⋈zs ⟩
+             xs ++ ys
+           ⋈⟨ ++-⋈ʳ pxs ⟩
+             vs ++ ys
+           ⋈⟨ ++-⋈ˡ pys ⟩
+             vs ++ ws
+           ⋈⟨ vs++ws⋈ns ⟩
+             ns
+           ∎⋈
+
+```
+
+
+
+mergesort : ∀ (ns : List ℕ) -> ns Sorted
+mergesort ns = sort (tree-of-list ns)
+  where sort : ∀ {ns : List ℕ} -> STree ns -> ns Sorted
+        sort [] = sorted-as [] ordered-[] (permutation [])
+        sort ([x] x) = sorted-as [ x ] ordered-[x] (permutation (here []))
+        sort (fork left right perm) with sort left | sort right
+        ... | sorted-as xs oxs pxs | sorted-as ys oys pys with merge≤ xs ys
+        ... | ⟨ zs , merged ⟩ =
+             sorted-as zs (merge-ordered oxs oys merged)
+             (perm-lemma-1 pxs pys perm merged)
+
