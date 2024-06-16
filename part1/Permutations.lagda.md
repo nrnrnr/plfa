@@ -227,6 +227,15 @@ Kovacs's representation uses insertion on *both* sides, not just one.
 Using insertion on both sides seems to complicate the proof of
 transitivity.
 
+A super-common idiom is to add an element to the front of both
+sides of a permutation:
+
+```agda
+⋈-∷ : ∀ {A : Set} {z : A} {xs ys : List A}
+    -> xs ⋈ ys
+    -> z ∷ xs ⋈ z ∷ ys
+⋈-∷ = insert here
+```
 
 
 
@@ -305,7 +314,7 @@ refl-⋈ : ∀ {A : Set} {xs : List A} -> xs ⋈ xs
 refl-⋈ {xs = xs} = self' xs
   where self' : ∀ {A : Set} (xs : List A) -> xs ⋈ xs
         self' [] = []
-        self' (x ∷ xs) = insert here (self' xs)
+        self' (x ∷ xs) = ⋈-∷ (self' xs)
 ```
 
 For transitivity, the key property is that when `ys` is a permutation of `zs`,
@@ -321,7 +330,7 @@ pullout-x : ∀ {A : Set} {x : A} {xs ys zs : List A}
 pullout-x here (insert {ys = ys} {zs = zs} a>as==bs perm) = ⟨ ys , ⟨ a>as==bs , perm ⟩ ⟩
 pullout-x {xs = y' ∷ _} (there insertion) (insert here ys'⋈as) 
     with pullout-x insertion ys'⋈as
-... | ⟨ bs , ⟨ z>bs=ys , ys⋈bs ⟩ ⟩ = ⟨ y' ∷ bs , ⟨ there z>bs=ys ,  insert here ys⋈bs   ⟩ ⟩
+... | ⟨ bs , ⟨ z>bs=ys , ys⋈bs ⟩ ⟩ = ⟨ y' ∷ bs , ⟨ there z>bs=ys ,  ⋈-∷ ys⋈bs   ⟩ ⟩
 pullout-x {zs = z' ∷ zs'} (there insertion) (insert (there y'>cs==zs') ys'⋈z'::cs) 
    with pullout-x insertion ys'⋈z'::cs
 ... | ⟨ cs , ⟨ here , xs'⋈cs ⟩ ⟩ = ⟨ zs' , ⟨ here , (insert y'>cs==zs' xs'⋈cs) ⟩ ⟩
@@ -474,7 +483,7 @@ zipper→⋈ : ∀ {A : Set} {ysₗ ys ysᵣ : List A}
               -> Permutation-Zipper ysᵣ ysₗ ys -> ysᵣ ⋈ shunt ysₗ ys
 zipper→⋈ [] = []
 zipper→⋈ {ysₗ = []} (here p) with zipper→⋈ p
-... | p' = insert here p'
+... | p' = ⋈-∷ p'
 zipper→⋈ {ysₗ = x ∷ xs} (here p) = insert (shunt-⊳ xs (there here)) (zipper→⋈ p)
 zipper→⋈ (there-left p) = zipper→⋈ p
 zipper→⋈ (there-right p) = zipper→⋈ p
@@ -490,7 +499,7 @@ A single swap creates a permutation.
 ```agda
 swapped→⋈ : ∀ {A : Set} {xs ys : List A} (pf : xs swapped-is ys) -> xs ⋈ ys
 swapped→⋈ here = insert (there here) refl-⋈
-swapped→⋈ (there pf) = insert here (swapped→⋈ pf)
+swapped→⋈ (there pf) = ⋈-∷ (swapped→⋈ pf)
 ```
 
 The reflexive, transitive closure relies on the `refl-⋈` and `trans-⋈` properties proved above.
@@ -682,7 +691,7 @@ open ⋈-Reasoning
 ⋈-head-swap : ∀ {A : Set} {x₁ x₂ : A} {xs ys : List A}
                -> xs ⋈ ys
                -> (x₁ ∷ x₂ ∷ xs) ⋈ (x₂ ∷ x₁ ∷ ys)
-⋈-head-swap xs⋈ys = insert (there here) (insert here xs⋈ys)
+⋈-head-swap xs⋈ys = insert (there here) (⋈-∷ xs⋈ys)
 
 swap-cons : ∀ {A : Set} (xs : List A) (x : A) (ys : List A)
           -> xs ++ x ∷ ys ⋈ x ∷ xs ++ ys
@@ -692,7 +701,7 @@ swap-cons (x₁ ∷ xs) x ys =
      (x₁ ∷ xs) ++ x ∷ ys
    ⋈≡⟨ refl ⟩
      x₁ ∷ (xs ++ x ∷ ys)
-   ⋈⟨ insert here (swap-cons xs x ys) ⟩
+   ⋈⟨ ⋈-∷ (swap-cons xs x ys) ⟩
      x₁ ∷ (x ∷ xs ++ ys)
    ⋈⟨ ⋈-head-swap refl-⋈ ⟩
      x ∷ (x₁ ∷ xs) ++ ys
@@ -708,7 +717,7 @@ We can add elements on the left or on the right.
 ++-⋈ʳ : ∀ {A : Set} {xs ys zs : List A}
       → xs ⋈ ys -> xs ++ zs ⋈ ys ++ zs
 ++-⋈ˡ {zs = []} xs⋈ys = xs⋈ys
-++-⋈ˡ {zs = x ∷ zs} xs⋈ys = insert here (++-⋈ˡ xs⋈ys)
+++-⋈ˡ {zs = x ∷ zs} xs⋈ys = ⋈-∷ (++-⋈ˡ xs⋈ys)
 ++-⋈ʳ {xs = xs} {ys = ys} {zs = []}
       xs⋈ys rewrite ++-identityʳ xs | ++-identityʳ ys = xs⋈ys
 ++-⋈ʳ {xs = xs} {ys = ys} {zs = z ∷ zs} xs⋈ys = 
@@ -716,7 +725,7 @@ We can add elements on the left or on the right.
     xs ++ z ∷ zs
   ⋈⟨ swap-cons xs z zs ⟩
     z ∷ xs ++ zs
-  ⋈⟨ insert here (++-⋈ʳ xs⋈ys) ⟩
+  ⋈⟨ ⋈-∷ (++-⋈ʳ xs⋈ys) ⟩
     z ∷ ys ++ zs
   ⋈⟨ sym-⋈ (swap-cons ys z zs) ⟩
     ys ++ z ∷ zs
@@ -786,7 +795,7 @@ insert-same (there pf) with insert-same pf
 
 ```agda
 insertion : ∀ {A : Set} {x : A} {xs zs : List A} -> x ⊳ xs ≡ zs -> (x ∷ xs) ⋈ zs
-insertion here = insert here refl-⋈
+insertion here = ⋈-∷ refl-⋈
 insertion (there pf) = insert (there pf) refl-⋈
 ```
 

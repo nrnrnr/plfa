@@ -194,13 +194,13 @@ merge-heaps {ns = ns} {ms = ms}
                          ns ++ n₂ ∷ xs₂ ++ ys₂
                        ⋈⟨ swap-cons ns n₂ (xs₂ ++ ys₂)  ⟩
                          n₂ ∷ ns ++ xs₂ ++ ys₂
-                       ⋈⟨ insert here (swap-++-++ ns xs₂ ys₂) ⟩
+                       ⋈⟨ ⋈-∷ (swap-++-++ ns xs₂ ys₂) ⟩
                          n₂ ∷ (ns ++ ys₂) ++ xs₂
                        ∎⋈
                   where swap-++-++ : ∀ {A : Set} (xs ys zs : List A)
                                   -> xs ++ ys ++ zs ⋈ (xs ++ zs) ++ ys
                         swap-++-++ [] ys zs = swap-++ ys zs
-                        swap-++-++ (x ∷ xs) ys zs = insert here (swap-++-++ xs ys zs)
+                        swap-++-++ (x ∷ xs) ys zs = ⋈-∷ (swap-++-++ xs ys zs)
               open _⇔_
 
               lemma2 {m} m∈list with to (Any-++-⇔ ns ms) m∈list
@@ -332,7 +332,7 @@ drain-heap {z ∷ zs} {suc k} length h@(root n _ _ orig-order perm)
              z ∷ zs
            ⋈⟨ z∷zs⋈min∷ms ⟩ 
              min ∷ ms
-           ⋈⟨ insert here ms⋈rest ⟩ 
+           ⋈⟨ ⋈-∷ ms⋈rest ⟩ 
              min ∷ rest
            ∎⋈
 ```
@@ -412,11 +412,11 @@ merge-permutes : ∀ {A : Set} {le : A -> A -> Set} {xs ys zs : List A}
                -> merged A le xs ys zs
                -> xs ++ ys ⋈ zs
 merge-permutes [] = []
-merge-permutes (left-∷-[] pf)   = insert here (merge-permutes pf)
-merge-permutes (left-∷-∷ x pf)  = insert here (merge-permutes pf)
-merge-permutes (right-[]-∷ pf)  = insert here (merge-permutes pf)
+merge-permutes (left-∷-[] pf)   = ⋈-∷ (merge-permutes pf)
+merge-permutes (left-∷-∷ x pf)  = ⋈-∷ (merge-permutes pf)
+merge-permutes (right-[]-∷ pf)  = ⋈-∷ (merge-permutes pf)
 merge-permutes {xs = xs} {ys = y ∷ ys} (right-∷-∷ _ pf)
-   = trans-⋈ (swap-cons xs y ys) (insert here (merge-permutes pf))
+   = trans-⋈ (swap-cons xs y ys) (⋈-∷ (merge-permutes pf))
 
 cong-Ascending : ∀ {xs ys : List ℕ} -> (xs ≡ ys) -> (Ascending xs) -> Ascending ys
 cong-Ascending refl pf = pf
@@ -519,10 +519,10 @@ relatively straightforward.
 ```agda
 sort-tree : ∀ {ns : List ℕ} -> Split ns -> ns Sorted
 sort-tree [] = sorted-as [] [] []
-sort-tree ([x] x) = sorted-as [ x ] [x] (insert here [])
+sort-tree ([x] x) = sorted-as [ x ] [x] (⋈-∷ [])
 sort-tree {ns} (fork {xs = vs} {ys = ws} left right vs++ws⋈ns)
   with sort-tree left | sort-tree right
-...  | sorted-as xs xs≤ pxs | sorted-as ys ys≤ pys with merge≤ xs ys
+...  | sorted-as xs xs≤ xs⋈vs | sorted-as ys ys≤ ys⋈ws with merge≤ xs ys
 ...       | ⟨ zs , merged ⟩ with merge-permutes merged 
 ...            | xs++ys⋈zs = 
      sorted-as zs (merge-ordered xs≤ ys≤ merged) zs⋈ns
@@ -532,9 +532,9 @@ sort-tree {ns} (fork {xs = vs} {ys = ws} left right vs++ws⋈ns)
              zs
            ⋈⟨ sym-⋈ xs++ys⋈zs ⟩
              xs ++ ys
-           ⋈⟨ ++-⋈ʳ pxs ⟩
+           ⋈⟨ ++-⋈ʳ xs⋈vs ⟩
              vs ++ ys
-           ⋈⟨ ++-⋈ˡ pys ⟩
+           ⋈⟨ ++-⋈ˡ ys⋈ws ⟩
              vs ++ ws
            ⋈⟨ vs++ws⋈ns ⟩
              ns
@@ -542,16 +542,20 @@ sort-tree {ns} (fork {xs = vs} {ys = ws} left right vs++ws⋈ns)
 
 ```
 
+And the final mergesort just builds the tree and sorts it.
 
+```agda
+tree-∷ : ∀ {A : Set} -> (x : A) -> {ns : List A} -> Split ns -> Split (x ∷ ns)
+tree-∷ x [] = [x] x
+tree-∷ x ([x] y) = fork ([x] x) ([x] y) refl-⋈
+tree-∷ x (fork {xs = xs} {ys = ys} xtree ytree xs++ys⋈ns) =
+  fork (tree-∷ x ytree) xtree (⋈-∷ (trans-⋈ (swap-++ ys xs) xs++ys⋈ns))
+
+tree-of-list : ∀ {A : Set} -> (xs : List A) -> Split xs
+tree-of-list [] = []
+tree-of-list (x ∷ xs) = tree-∷ x (tree-of-list xs)
 
 mergesort : ∀ (ns : List ℕ) -> ns Sorted
-mergesort ns = sort (tree-of-list ns)
-  where sort : ∀ {ns : List ℕ} -> STree ns -> ns Sorted
-        sort [] = sorted-as [] ordered-[] (permutation [])
-        sort ([x] x) = sorted-as [ x ] ordered-[x] (permutation (here []))
-        sort (fork left right perm) with sort left | sort right
-        ... | sorted-as xs oxs pxs | sorted-as ys oys pys with merge≤ xs ys
-        ... | ⟨ zs , merged ⟩ =
-             sorted-as zs (merge-ordered oxs oys merged)
-             (perm-lemma-1 pxs pys perm merged)
+mergesort ns = sort-tree (tree-of-list ns)
+```
 
