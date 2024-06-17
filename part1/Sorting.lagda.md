@@ -127,6 +127,42 @@ data _Sorted : List ℕ -> Set where
 ```
 
 
+## Exercise `Any-++-⇔` (finding elements in appended lists)
+
+Prove a result similar to `All-++-⇔`, but with `Any` in place of `All`, and a suitable
+replacement for `_×_`.  As a consequence, demonstrate an equivalence relating
+`_∈_` and `_++_`.
+
+```agda
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+
+Any-++-⇔ : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
+  Any P (xs ++ ys) ⇔ (Any P xs ⊎ Any P ys)
+Any-++-⇔ xs ys =
+   record { to = to xs ys; from = from xs ys }
+ where 
+  to : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
+    Any P (xs ++ ys) → (Any P xs ⊎ Any P ys)
+  from : ∀ { A : Set} {P : A → Set} (xs ys : List A) →
+    Any P xs ⊎ Any P ys → Any P (xs ++ ys)
+
+  extra : ∀ { A : Set} {P : A → Set} (xs ys : List A) → Any P xs -> Any P (xs ++ ys)
+  extra (x ∷ xs) ys (here x₁) = here x₁
+  extra (x ∷ xs) ys (there pf) = there (extra xs ys pf)
+
+  to [] ys pf = inj₂ pf
+  to (x ∷ xs) ys (here x₁) = inj₁ (here x₁)
+  to (x ∷ xs) ys (there pf) with to xs ys pf
+  ... | inj₁ x₁ = inj₁ (there x₁)
+  ... | inj₂ y = inj₂ y
+  from xs ys (inj₁ x) = extra xs ys x
+  from [] ys (inj₂ y) = y
+  from (x ∷ xs) ys (inj₂ y) = there (from xs ys (inj₂ y))
+
+
+
+```
+
 ## Heaps
 
 The parameter to a heap lists the elements it contains.

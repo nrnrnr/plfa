@@ -10,6 +10,24 @@ module cs.plfa.part1.Permutations where
 A sorting algorithm is correct only if its output is a 
 permutation of its input.
 This page presents multiple ways to formalize permutations.
+The formalizations are presented in the order in which I explored
+them:
+
+  - A representation based on Huet's zipper
+
+  - A representation based on a separate insertion judgment, inspired
+    by Andras Kovacs
+
+  - The reflexive, transitive closure of single swaps of adjacent elements
+
+  - The representation in the standard library, which is a better
+    representation of the reflexive, transitive closure of single
+    swaps
+
+All the formalizations are equivalent, but 
+the library representation is likely the best.
+The end of the document includes some useful lemmas involving
+permutations of lists formed with `++`.
 
 ## Imports
 
@@ -35,6 +53,7 @@ open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Properties
   using (reverse-++-commute; map-compose; map-++-commute; foldr-++)
   renaming (mapIsFold to map-is-foldr)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Algebra.Structures using (IsMonoid)
 open import Relation.Unary using (Decidable)
 open import Relation.Binary using (Decidable)
@@ -68,92 +87,16 @@ reverse []        =  []
 reverse (x ∷ xs)  =  reverse xs ++ [ x ]
 ```
 
-## Faster reverse
+## Zipping up the zipper
 
-The definition above, while easy to reason about, is less efficient than
-one might expect since it takes time quadratic in the length of the list.
-The idea is that we generalise reverse to take an additional argument:
+A zipper represents a "list with pointer" 
+as the reverse of the head, followed by the tail.
+The abstraction function is the `shunt` function from the Lists chapter.
+
 ```agda
 shunt : ∀ {A : Set} → List A → List A → List A
 shunt []       ys  =  ys
 shunt (x ∷ xs) ys  =  shunt xs (x ∷ ys)
-```
-The definition is by recursion on the first argument. The second argument
-actually becomes _larger_, but this is not a problem because the argument
-on which we recurse becomes _smaller_.
-
-Shunt is related to reverse as follows:
-```agda
-shunt-reverse : ∀ {A : Set} (xs ys : List A)
-  → shunt xs ys ≡ reverse xs ++ ys
-shunt-reverse [] ys =
-  begin
-    shunt [] ys
-  ≡⟨⟩
-    ys
-  ≡⟨⟩
-    reverse [] ++ ys
-  ∎
-shunt-reverse (x ∷ xs) ys =
-  begin
-    shunt (x ∷ xs) ys
-  ≡⟨⟩
-    shunt xs (x ∷ ys)
-  ≡⟨ shunt-reverse xs (x ∷ ys) ⟩
-    reverse xs ++ (x ∷ ys)
-  ≡⟨⟩
-    reverse xs ++ ([ x ] ++ ys)
-  ≡⟨ sym (++-assoc (reverse xs) [ x ] ys) ⟩
-    (reverse xs ++ [ x ]) ++ ys
-  ≡⟨⟩
-    reverse (x ∷ xs) ++ ys
-  ∎
-```
-The proof is by induction on the first argument.
-The base case instantiates to `[]`, and follows by straightforward computation.
-The inductive case instantiates to `x ∷ xs` and follows by the inductive
-hypothesis and associativity of append.  When we invoke the inductive hypothesis,
-the second argument actually becomes *larger*, but this is not a problem because
-the argument on which we induct becomes *smaller*.
-
-Generalising on an auxiliary argument, which becomes larger as the argument on
-which we recurse or induct becomes smaller, is a common trick. It belongs in
-your quiver of arrows, ready to slay the right problem.
-
-## Exercise `Any-++-⇔` (recommended)
-
-Prove a result similar to `All-++-⇔`, but with `Any` in place of `All`, and a suitable
-replacement for `_×_`.  As a consequence, demonstrate an equivalence relating
-`_∈_` and `_++_`.
-
-```agda
-open import Data.Sum using (_⊎_; inj₁; inj₂)
-
-Any-++-⇔ : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
-  Any P (xs ++ ys) ⇔ (Any P xs ⊎ Any P ys)
-Any-++-⇔ xs ys =
-   record { to = to xs ys; from = from xs ys }
- where 
-  to : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
-    Any P (xs ++ ys) → (Any P xs ⊎ Any P ys)
-  from : ∀ { A : Set} {P : A → Set} (xs ys : List A) →
-    Any P xs ⊎ Any P ys → Any P (xs ++ ys)
-
-  extra : ∀ { A : Set} {P : A → Set} (xs ys : List A) → Any P xs -> Any P (xs ++ ys)
-  extra (x ∷ xs) ys (here x₁) = here x₁
-  extra (x ∷ xs) ys (there pf) = there (extra xs ys pf)
-
-  to [] ys pf = inj₂ pf
-  to (x ∷ xs) ys (here x₁) = inj₁ (here x₁)
-  to (x ∷ xs) ys (there pf) with to xs ys pf
-  ... | inj₁ x₁ = inj₁ (there x₁)
-  ... | inj₂ y = inj₂ y
-  from xs ys (inj₁ x) = extra xs ys x
-  from [] ys (inj₂ y) = y
-  from (x ∷ xs) ys (inj₂ y) = there (from xs ys (inj₂ y))
-
-
-
 ```
 
 ## Permutations
@@ -231,10 +174,10 @@ A super-common idiom is to add an element to the front of both
 sides of a permutation:
 
 ```agda
-⋈-∷ : ∀ {A : Set} {z : A} {xs ys : List A}
-    -> xs ⋈ ys
-    -> z ∷ xs ⋈ z ∷ ys
-⋈-∷ = insert here
+--⋈-∷ : ∀ {A : Set} {z : A} {xs ys : List A}
+--    -> xs ⋈ ys
+--    -> z ∷ xs ⋈ z ∷ ys
+pattern ⋈-∷ perm = insert here perm
 ```
 
 
@@ -789,13 +732,5 @@ insert-same (there pf) with insert-same pf
 ⋈-same [] = []
 ⋈-same (insert x pf) with insert-same x | ⋈-same pf
 ... | same-∷ pf' | pf'' = same-∷ (trans-same pf'' pf')
-```
-
-## Orphans
-
-```agda
-insertion : ∀ {A : Set} {x : A} {xs zs : List A} -> x ⊳ xs ≡ zs -> (x ∷ xs) ⋈ zs
-insertion here = ⋈-∷ refl-⋈
-insertion (there pf) = insert (there pf) refl-⋈
 ```
 
