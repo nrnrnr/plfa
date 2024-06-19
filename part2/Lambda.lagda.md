@@ -4,7 +4,7 @@ permalink : /Lambda/
 ---
 
 ```agda
-module plfa.part2.Lambda where
+module cs.plfa.part2.Lambda where
 ```
 
 The _lambda-calculus_, first published by the logician Alonzo Church in
@@ -60,7 +60,7 @@ open import Data.Unit using (tt)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Relation.Nullary.Decidable using (False; toWitnessFalse)
 open import Relation.Nullary.Negation using (¬?)
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl)
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong)
 ```
 
 ## Syntax of terms
@@ -193,7 +193,12 @@ two natural numbers.  Your definition may use `plus` as
 defined earlier.
 
 ```agda
--- Your code goes here
+mul : Term
+mul = μ "*" ⇒ ƛ "m" ⇒ ƛ "n" ⇒
+         case ` "m"
+           [zero⇒ `zero
+           |suc "m" ⇒ plus · (` "n") · (` "*" · ` "m" · ` "n") ]
+
 ```
 
 
@@ -258,6 +263,18 @@ plus′ = μ′ + ⇒ ƛ′ m ⇒ ƛ′ n ⇒
   n  =  ` "n"
 ```
 Write out the definition of multiplication in the same style.
+
+```agda
+mul' : Term
+mul' = μ′ * ⇒ ƛ′ m ⇒ ƛ′ n ⇒
+          case′ m
+            [zero⇒ `zero
+            |suc m ⇒ plus′ · n · (* · m · n) ]
+  where
+  *  =  ` "*"
+  m  =  ` "m"
+  n  =  ` "n"
+```
 
 
 ### Formal vs informal
@@ -540,6 +557,74 @@ substitution.
 
 ```agda
 -- Your code goes here
+infix 9 _[_:=_]'
+
+_[_:=_]' : Term → Id → Term → Term
+_with[_:=_]when_≠_ : Term -> Id -> Term -> Id -> Id -> Term
+M with[ z := V ]when x ≠ y with x ≟ y
+... | yes _ = M
+... | no _  = M [ z := V ]'
+
+
+(` x) [ y := V ]' with x ≟ y
+... | yes _         = V
+... | no  _         = ` x
+(ƛ x ⇒ N) [ y := V ]' = ƛ x ⇒ (N with[ y := V ]when x ≠ y)
+(L · M) [ y := V ]'  = L [ y := V ]' · M [ y := V ]'
+(`zero) [ y := V ]'  = `zero
+(`suc M) [ y := V ]' = `suc M [ y := V ]'
+(case L [zero⇒ M |suc x ⇒ N ]) [ y := V ]'
+   = case L [ y := V ]' [zero⇒ M [ y := V ]' |suc x ⇒ N with[ y := V ]when x ≠ y ]
+(μ x ⇒ N) [ y := V ]' = μ x ⇒ (N with[ y := V ]when x ≠ y)
+
+import Relation.Binary.PropositionalEquality as Eq
+--open Eq using (_≡_; refl; sym; cong; cong₂; cong-app)
+
+
+
+--claim : ∀ (M : Term) {x : Id} {V : Term} {vval : Value V}
+--      -> (M [ x := V ]) ≡ (M [ x := V ]')
+--claim (` x) {x = y} {V = V} with x ≟ y
+--... | yes refl = refl
+--... | no x≢y = refl
+--claim (ƛ y ⇒ m) {x} {V} {ok} with x ≟ y | claim m  {x} {V} {ok}
+--... | yes x≡y | m' = {!!}
+--... | no x≢y | m' = {!!}
+--claim  (M · N) {x} {V} {ok} with claim M {x} {V} {ok} | claim N {x} {V} {ok}
+--... | c1 | c2 = lemma c1 c2
+--  where lemma : ∀ {M N M' N' : Term}
+--              -> M ≡ M' -> N ≡ N' -> M · N ≡ M' · N'
+--        lemma refl refl = refl
+--claim `zero = refl
+--claim (`suc m) {vval = ok} with claim m {vval = ok}
+--... | thing = cong (λ M -> `suc M) thing
+--claim case m [zero⇒ m₁ |suc x ⇒ m₂ ] {x = y} {V = V} {vval}
+--  with x ≟ y | claim m {y} {V} {vval} | claim m₁ {y} {V} {vval} | claim m₂ {y} {V} {vval}
+--... | yes x≡y | good-m | good-m₁ | _ = 
+--  begin
+--    case m [ y := V ] [zero⇒ m₁ [ y := V ] |suc x ⇒ m₂ ]
+--  ≡⟨ cong (λ M -> case M [zero⇒ m₁ [ y := V ] |suc x ⇒ m₂ ])  good-m ⟩
+--    case m [ y := V ]' [zero⇒ m₁ [ y := V ] |suc x ⇒ m₂ ]
+--  ≡⟨ cong (λ M -> case m [ y := V ]' [zero⇒ M |suc x ⇒ m₂ ]) good-m₁  ⟩
+--    case m [ y := V ]' [zero⇒ m₁ [ y := V ]' |suc x ⇒ m₂ ]
+--  ∎
+--  where open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; step-≡; _∎)
+--... | no x≢y  | good-m | good-m₁ | good-m₂ = 
+--  begin
+--    case m [ y := V ] [zero⇒ m₁ [ y := V ] |suc x ⇒ m₂ [ y := V ] ]
+--  ≡⟨ cong (λ M -> case M [zero⇒ m₁ [ y := V ] |suc x ⇒ m₂  [ y := V ] ])  good-m ⟩
+--    case m [ y := V ]' [zero⇒ m₁ [ y := V ] |suc x ⇒ m₂  [ y := V ]  ]
+--  ≡⟨ cong (λ M -> case m [ y := V ]' [zero⇒ M |suc x ⇒ m₂ [ y := V ] ]) good-m₁  ⟩
+--    case m [ y := V ]' [zero⇒ m₁ [ y := V ]' |suc x ⇒ m₂  [ y := V ] ]
+--  ≡⟨ cong (λ M -> case m [ y := V ]' [zero⇒ m₁ [ y := V ]' |suc x ⇒ M ]) good-m₂  ⟩
+--    case m [ y := V ]' [zero⇒ m₁ [ y := V ]' |suc x ⇒ m₂  [ y := V ]' ]
+--  ∎
+--  where open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; step-≡; _∎)
+--claim (μ y ⇒ m) {x} {V} {vval = ok} with claim m {x} {V} {vval = ok} | x ≟ y
+--... | sub | yes x≡y  = {!cong (λ M -> μ y ⇒ M) ?!}
+--... | sub | no _  = {!!}
+
+
 ```
 
 
