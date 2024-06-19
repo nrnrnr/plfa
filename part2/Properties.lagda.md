@@ -4,7 +4,7 @@ permalink : /Properties/
 ---
 
 ```agda
-module plfa.part2.Properties where
+module cs.plfa.part2.Properties where
 ```
 
 This chapter covers properties of the simply-typed lambda calculus, as
@@ -28,8 +28,8 @@ open import Data.Product
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Relation.Nullary using (¬_; Dec; yes; no)
 open import Function using (_∘_)
-open import plfa.part1.Isomorphism
-open import plfa.part2.Lambda
+open import cs.plfa.part1.Isomorphism
+open import cs.plfa.part2.Lambda
 ```
 
 
@@ -155,6 +155,12 @@ Show that `Canonical V ⦂ A` is isomorphic to `(∅ ⊢ V ⦂ A) × (Value V)`,
 that is, the canonical forms are exactly the well-typed values.
 
 ```
+can-is-typed : ∀ {A : Type} {V : Term} -> Canonical V ⦂ A -> (∅ ⊢ V ⦂ A) × (Value V)
+can-is-typed (C-ƛ typing) = ⟨ ⊢ƛ typing , V-ƛ ⟩
+can-is-typed C-zero = ⟨ ⊢zero , V-zero ⟩
+can-is-typed (C-suc pf) with can-is-typed pf
+... | ⟨ typing , val ⟩ = ⟨ ⊢suc typing , V-suc val ⟩
+
 -- Your code goes here
 ```
 
@@ -1274,11 +1280,26 @@ Stuck M  =  Normal M × ¬ Value M
 
 Using progress, it is easy to show that no well-typed term is stuck:
 ```agda
-postulate
-  unstuck : ∀ {M A}
-    → ∅ ⊢ M ⦂ A
-      -----------
-    → ¬ (Stuck M)
+unstuck : ∀ {M A}
+  → ∅ ⊢ M ⦂ A
+    -----------
+  → ¬ (Stuck M)
+
+unstuck (⊢ƛ typing) ⟨ normal , nonvalue ⟩ = nonvalue V-ƛ
+unstuck (tyfun · tyarg)  ⟨ normal , _ ⟩ with progress tyfun | progress tyarg
+... | step fun | _ = normal (ξ-·₁ fun)
+... | done fun | step arg = normal (ξ-·₂ fun arg)
+... | done fun | done arg with tyfun
+...                             | ⊢ƛ _ = normal (β-ƛ arg)
+unstuck ⊢zero  ⟨ normal , nonvalue ⟩  = nonvalue V-zero
+unstuck (⊢suc typing)  ⟨ normal , nonvalue ⟩ with unstuck typing
+... | not-stuck = not-stuck ⟨ (λ n → normal (ξ-suc n)) , (λ vm → nonvalue (V-suc vm)) ⟩
+unstuck (⊢case typing typing-z typing-suc)  ⟨ normal , _ ⟩
+  with progress typing | typing
+... | step scrutinee | _ = normal (ξ-case scrutinee)
+... | done scrutinee | ⊢zero = normal β-zero
+... | done (V-suc scrutinee) | ⊢suc thing = normal (β-suc scrutinee)
+unstuck (⊢μ typing)  ⟨ normal , nonvalue ⟩  = normal β-μ
 ```
 
 Using preservation, it is easy to show that after any number of steps,
