@@ -4,7 +4,7 @@ permalink : /DeBruijn/
 ---
 
 ```agda
-module plfa.part2.DeBruijn where
+module cs.plfa.part2.DeBruijn where
 ```
 
 The previous two chapters introduced lambda calculus, with a
@@ -488,6 +488,7 @@ twoᶜ = ƛ ƛ (# 1 · (# 1 · # 0))
 
 plusᶜ : ∀ {Γ A} → Γ ⊢ Ch A ⇒ Ch A ⇒ Ch A
 plusᶜ = ƛ ƛ ƛ ƛ (# 3 · # 1 · (# 2 · # 1 · # 0))
+--plusᶜ = ƛ ƛ ƛ ƛ (# 3 · # 1 · (# 2 · # 1 · {!!}))
 
 sucᶜ : ∀ {Γ} → Γ ⊢ `ℕ ⇒ `ℕ
 sucᶜ = ƛ `suc (# 0)
@@ -509,6 +510,20 @@ de Bruijn representation.
 
 ```agda
 -- Your code goes here
+mul : ∀ {Γ} → Γ ⊢ `ℕ ⇒ `ℕ ⇒ `ℕ
+mul = μ ƛ ƛ (case (# 1) `zero (plus · (# 1) · (# 3 · # 1 · # 0)))
+
+
+zeroᶜ : ∀ {Γ A} → Γ ⊢ Ch A
+zeroᶜ = ƛ ƛ # 0
+mulᶜ : ∀ {Γ A} → Γ ⊢ Ch A ⇒ Ch A ⇒ Ch A
+-- \n.\m.\f.\x.  n (plusᶜ m zeroᶜ f) x
+-- OK: mulᶜ = ƛ ƛ ƛ ƛ (# 3 · (plusᶜ · # 2 · zeroᶜ · # 1) · # 0 )
+-- \n.\m.\f.  n (plusᶜ m zeroᶜ f)
+mulᶜ = ƛ ƛ ƛ (# 2 · (plusᶜ · # 1 · zeroᶜ · # 0))
+-- \n.\m. n (plusᶜ m) zeroᶜ
+mulᶜ' : ∀ {Γ A} → Γ ⊢ Ch (Ch A) ⇒ Ch A ⇒ Ch A
+mulᶜ' = ƛ ƛ (# 1 · (plusᶜ · # 0) · zeroᶜ)
 ```
 
 
@@ -896,87 +911,87 @@ We reiterate each of our previous examples.  First, the Church
 numeral two applied to the successor function and zero yields
 the natural number two:
 ```agda
-_ : twoᶜ · sucᶜ · `zero {∅} —↠ `suc `suc `zero
-_ =
-  begin
-    twoᶜ · sucᶜ · `zero
-  —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
-    (ƛ (sucᶜ · (sucᶜ · # 0))) · `zero
-  —→⟨ β-ƛ V-zero ⟩
-    sucᶜ · (sucᶜ · `zero)
-  —→⟨ ξ-·₂ V-ƛ (β-ƛ V-zero) ⟩
-    sucᶜ · `suc `zero
-  —→⟨ β-ƛ (V-suc V-zero) ⟩
-   `suc (`suc `zero)
-  ∎
+--  _ : twoᶜ · sucᶜ · `zero {∅} —↠ `suc `suc `zero
+--  _ =
+--    begin
+--      twoᶜ · sucᶜ · `zero
+--    —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
+--      (ƛ (sucᶜ · (sucᶜ · # 0))) · `zero
+--    —→⟨ β-ƛ V-zero ⟩
+--      sucᶜ · (sucᶜ · `zero)
+--    —→⟨ ξ-·₂ V-ƛ (β-ƛ V-zero) ⟩
+--      sucᶜ · `suc `zero
+--    —→⟨ β-ƛ (V-suc V-zero) ⟩
+--     `suc (`suc `zero)
+--    ∎
 ```
 As before, we need to supply an explicit context to `` `zero ``.
 
 Next, a sample reduction demonstrating that two plus two is four:
 ```agda
-_ : plus {∅} · two · two —↠ `suc `suc `suc `suc `zero
-_ =
-    plus · two · two
-  —→⟨ ξ-·₁ (ξ-·₁ β-μ) ⟩
-    (ƛ ƛ case (` S Z) (` Z) (`suc (plus · ` Z · ` S Z))) · two · two
-  —→⟨ ξ-·₁ (β-ƛ (V-suc (V-suc V-zero))) ⟩
-    (ƛ case two (` Z) (`suc (plus · ` Z · ` S Z))) · two
-  —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
-    case two two (`suc (plus · ` Z · two))
-  —→⟨ β-suc (V-suc V-zero) ⟩
-    `suc (plus · `suc `zero · two)
-  —→⟨ ξ-suc (ξ-·₁ (ξ-·₁ β-μ)) ⟩
-    `suc ((ƛ ƛ case (` S Z) (` Z) (`suc (plus · ` Z · ` S Z)))
-      · `suc `zero · two)
-  —→⟨ ξ-suc (ξ-·₁ (β-ƛ (V-suc V-zero))) ⟩
-    `suc ((ƛ case (`suc `zero) (` Z) (`suc (plus · ` Z · ` S Z))) · two)
-  —→⟨ ξ-suc (β-ƛ (V-suc (V-suc V-zero))) ⟩
-    `suc (case (`suc `zero) (two) (`suc (plus · ` Z · two)))
-  —→⟨ ξ-suc (β-suc V-zero) ⟩
-    `suc (`suc (plus · `zero · two))
-  —→⟨ ξ-suc (ξ-suc (ξ-·₁ (ξ-·₁ β-μ))) ⟩
-    `suc (`suc ((ƛ ƛ case (` S Z) (` Z) (`suc (plus · ` Z · ` S Z)))
-      · `zero · two))
-  —→⟨ ξ-suc (ξ-suc (ξ-·₁ (β-ƛ V-zero))) ⟩
-    `suc (`suc ((ƛ case `zero (` Z) (`suc (plus · ` Z · ` S Z))) · two))
-  —→⟨ ξ-suc (ξ-suc (β-ƛ (V-suc (V-suc V-zero)))) ⟩
-    `suc (`suc (case `zero (two) (`suc (plus · ` Z · two))))
-  —→⟨ ξ-suc (ξ-suc β-zero) ⟩
-   `suc (`suc (`suc (`suc `zero)))
-  ∎
+--_ : plus {∅} · two · two —↠ `suc `suc `suc `suc `zero
+--_ =
+--    plus · two · two
+--  —→⟨ ξ-·₁ (ξ-·₁ β-μ) ⟩
+--    (ƛ ƛ case (` S Z) (` Z) (`suc (plus · ` Z · ` S Z))) · two · two
+--  —→⟨ ξ-·₁ (β-ƛ (V-suc (V-suc V-zero))) ⟩
+--    (ƛ case two (` Z) (`suc (plus · ` Z · ` S Z))) · two
+--  —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
+--    case two two (`suc (plus · ` Z · two))
+--  —→⟨ β-suc (V-suc V-zero) ⟩
+--    `suc (plus · `suc `zero · two)
+--  —→⟨ ξ-suc (ξ-·₁ (ξ-·₁ β-μ)) ⟩
+--    `suc ((ƛ ƛ case (` S Z) (` Z) (`suc (plus · ` Z · ` S Z)))
+--      · `suc `zero · two)
+--  —→⟨ ξ-suc (ξ-·₁ (β-ƛ (V-suc V-zero))) ⟩
+--    `suc ((ƛ case (`suc `zero) (` Z) (`suc (plus · ` Z · ` S Z))) · two)
+--  —→⟨ ξ-suc (β-ƛ (V-suc (V-suc V-zero))) ⟩
+--    `suc (case (`suc `zero) (two) (`suc (plus · ` Z · two)))
+--  —→⟨ ξ-suc (β-suc V-zero) ⟩
+--    `suc (`suc (plus · `zero · two))
+--  —→⟨ ξ-suc (ξ-suc (ξ-·₁ (ξ-·₁ β-μ))) ⟩
+--    `suc (`suc ((ƛ ƛ case (` S Z) (` Z) (`suc (plus · ` Z · ` S Z)))
+--      · `zero · two))
+--  —→⟨ ξ-suc (ξ-suc (ξ-·₁ (β-ƛ V-zero))) ⟩
+--    `suc (`suc ((ƛ case `zero (` Z) (`suc (plus · ` Z · ` S Z))) · two))
+--  —→⟨ ξ-suc (ξ-suc (β-ƛ (V-suc (V-suc V-zero)))) ⟩
+--    `suc (`suc (case `zero (two) (`suc (plus · ` Z · two))))
+--  —→⟨ ξ-suc (ξ-suc β-zero) ⟩
+--   `suc (`suc (`suc (`suc `zero)))
+--  ∎
 ```
 
 And finally, a similar sample reduction for Church numerals:
 ```agda
-_ : plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero —↠ `suc `suc `suc `suc `zero {∅}
-_ =
-  begin
-    plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero
-  —→⟨ ξ-·₁ (ξ-·₁ (ξ-·₁ (β-ƛ V-ƛ))) ⟩
-    (ƛ ƛ ƛ twoᶜ · ` S Z · (` S S Z · ` S Z · ` Z)) · twoᶜ · sucᶜ · `zero
-  —→⟨ ξ-·₁ (ξ-·₁ (β-ƛ V-ƛ)) ⟩
-    (ƛ ƛ twoᶜ · ` S Z · (twoᶜ · ` S Z · ` Z)) · sucᶜ · `zero
-  —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
-    (ƛ twoᶜ · sucᶜ · (twoᶜ · sucᶜ · ` Z)) · `zero
-  —→⟨ β-ƛ V-zero ⟩
-    twoᶜ · sucᶜ · (twoᶜ · sucᶜ · `zero)
-  —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
-    (ƛ sucᶜ · (sucᶜ · ` Z)) · (twoᶜ · sucᶜ · `zero)
-  —→⟨ ξ-·₂ V-ƛ (ξ-·₁ (β-ƛ V-ƛ)) ⟩
-    (ƛ sucᶜ · (sucᶜ · ` Z)) · ((ƛ sucᶜ · (sucᶜ · ` Z)) · `zero)
-  —→⟨ ξ-·₂ V-ƛ (β-ƛ V-zero) ⟩
-    (ƛ sucᶜ · (sucᶜ · ` Z)) · (sucᶜ · (sucᶜ · `zero))
-  —→⟨ ξ-·₂ V-ƛ (ξ-·₂ V-ƛ (β-ƛ V-zero)) ⟩
-    (ƛ sucᶜ · (sucᶜ · ` Z)) · (sucᶜ · `suc `zero)
-  —→⟨ ξ-·₂ V-ƛ (β-ƛ (V-suc V-zero)) ⟩
-    (ƛ sucᶜ · (sucᶜ · ` Z)) · `suc (`suc `zero)
-  —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
-    sucᶜ · (sucᶜ · `suc (`suc `zero))
-  —→⟨ ξ-·₂ V-ƛ (β-ƛ (V-suc (V-suc V-zero))) ⟩
-    sucᶜ · `suc (`suc (`suc `zero))
-  —→⟨ β-ƛ (V-suc (V-suc (V-suc V-zero))) ⟩
-    `suc (`suc (`suc (`suc `zero)))
-  ∎
+---_ : plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero —↠ `suc `suc `suc `suc `zero {∅}
+---_ =
+---  begin
+---    plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero
+---  —→⟨ ξ-·₁ (ξ-·₁ (ξ-·₁ (β-ƛ V-ƛ))) ⟩
+---    (ƛ ƛ ƛ twoᶜ · ` S Z · (` S S Z · ` S Z · ` Z)) · twoᶜ · sucᶜ · `zero
+---  —→⟨ ξ-·₁ (ξ-·₁ (β-ƛ V-ƛ)) ⟩
+---    (ƛ ƛ twoᶜ · ` S Z · (twoᶜ · ` S Z · ` Z)) · sucᶜ · `zero
+---  —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
+---    (ƛ twoᶜ · sucᶜ · (twoᶜ · sucᶜ · ` Z)) · `zero
+---  —→⟨ β-ƛ V-zero ⟩
+---    twoᶜ · sucᶜ · (twoᶜ · sucᶜ · `zero)
+---  —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
+---    (ƛ sucᶜ · (sucᶜ · ` Z)) · (twoᶜ · sucᶜ · `zero)
+---  —→⟨ ξ-·₂ V-ƛ (ξ-·₁ (β-ƛ V-ƛ)) ⟩
+---    (ƛ sucᶜ · (sucᶜ · ` Z)) · ((ƛ sucᶜ · (sucᶜ · ` Z)) · `zero)
+---  —→⟨ ξ-·₂ V-ƛ (β-ƛ V-zero) ⟩
+---    (ƛ sucᶜ · (sucᶜ · ` Z)) · (sucᶜ · (sucᶜ · `zero))
+---  —→⟨ ξ-·₂ V-ƛ (ξ-·₂ V-ƛ (β-ƛ V-zero)) ⟩
+---    (ƛ sucᶜ · (sucᶜ · ` Z)) · (sucᶜ · `suc `zero)
+---  —→⟨ ξ-·₂ V-ƛ (β-ƛ (V-suc V-zero)) ⟩
+---    (ƛ sucᶜ · (sucᶜ · ` Z)) · `suc (`suc `zero)
+---  —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
+---    sucᶜ · (sucᶜ · `suc (`suc `zero))
+---  —→⟨ ξ-·₂ V-ƛ (β-ƛ (V-suc (V-suc V-zero))) ⟩
+---    sucᶜ · `suc (`suc (`suc `zero))
+---  —→⟨ β-ƛ (V-suc (V-suc (V-suc V-zero))) ⟩
+---    `suc (`suc (`suc (`suc `zero)))
+---  ∎
 ```
 
 ## Values do not reduce
@@ -995,7 +1010,53 @@ not reduce, and its corollary, terms that reduce are not
 values.
 
 ```agda
+Normal : ∀ {Γ A} -> Γ ⊢ A → Set
+Normal M  =  ∀ {N} → ¬ (M —→ N)
+
+
+V¬—→ : ∀ {Γ A} -> (M : Γ ⊢ A) -> Value M -> Normal M
+V¬—→ (ƛ _) V-ƛ () 
+V¬—→ `zero V-zero ()
+V¬—→ (`suc N) (V-suc val) (ξ-suc reduction) = V¬—→ N val reduction
+
+─→¬V : ∀ {Γ A} {M : Γ ⊢ A} {N : Γ ⊢ A} -> (reduction : M —→ N) -> ¬ (Value M)
+─→¬V (ξ-·₁ reduction) ()
+─→¬V (ξ-·₂ x reduction) ()
+─→¬V (β-ƛ x) ()
+─→¬V (ξ-suc reduction) (V-suc val) = ─→¬V reduction val
+─→¬V (ξ-case reduction) ()
+─→¬V β-zero ()
+─→¬V (β-suc x) ()
+─→¬V β-μ ()
 -- Your code goes here
+
+data Reduces : ∀ {Γ A} -> Γ ⊢ A → Set where
+  reduces : ∀ {Γ A} {M N : Γ ⊢ A} -> M —→ N -> Reduces M
+
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+
+something : ∀ {A} -> (M : ∅ ⊢ A) -> Value M ⊎ Reduces M
+something (` ())
+something (ƛ term) = inj₁ V-ƛ
+something (fun · arg) with something fun
+... | inj₂ (reduces x) = inj₂ (reduces (ξ-·₁ x))
+... | inj₁ V-ƛ with something arg
+...                 | inj₁ x = inj₂ (reduces (β-ƛ x))
+...                 | inj₂ (reduces red) = inj₂ (reduces (ξ-·₂ V-ƛ  red))
+something `zero = inj₁ V-zero
+something (`suc term) with something term
+... | inj₁ x = inj₁ (V-suc x)
+... | inj₂ (reduces x) = inj₂ (reduces (ξ-suc x))
+something (case term term₁ term₂) with something term 
+... | inj₂ (reduces red) = inj₂ (reduces (ξ-case red))
+... | inj₁ V-zero = inj₂ (reduces β-zero)
+... | inj₁ (V-suc x) = inj₂ (reduces (β-suc x))
+something (μ term) = inj₂ (reduces β-μ)
+
+nothing : ¬ (∀ {Γ A} -> (M : Γ ⊢ A) -> Value M ⊎ Reduces M)
+nothing claim with claim {∅ , `ℕ} {`ℕ} (` Z)
+... | inj₂ (reduces ())
+
 ```
 
 ## Progress
@@ -1106,238 +1167,238 @@ sucμ = μ (`suc (# 0))
 To compute the first three steps of the infinite reduction sequence,
 we evaluate with three steps worth of gas:
 ```agda
-_ : eval (gas 3) sucμ ≡
-  steps
-   (μ `suc ` Z
-   —→⟨ β-μ ⟩
-    `suc (μ `suc ` Z)
-   —→⟨ ξ-suc β-μ ⟩
-    `suc (`suc (μ `suc ` Z))
-   —→⟨ ξ-suc (ξ-suc β-μ) ⟩
-    `suc (`suc (`suc (μ `suc ` Z)))
-   ∎)
-   out-of-gas
-_ = refl
+--_ : eval (gas 3) sucμ ≡
+--  steps
+--   (μ `suc ` Z
+--   —→⟨ β-μ ⟩
+--    `suc (μ `suc ` Z)
+--   —→⟨ ξ-suc β-μ ⟩
+--    `suc (`suc (μ `suc ` Z))
+--   —→⟨ ξ-suc (ξ-suc β-μ) ⟩
+--    `suc (`suc (`suc (μ `suc ` Z)))
+--   ∎)
+--   out-of-gas
+--_ = refl
 ```
 
 The Church numeral two applied to successor and zero:
 ```agda
-_ : eval (gas 100) (twoᶜ · sucᶜ · `zero) ≡
-  steps
-   ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) · `zero
-   —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
-    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) · `zero
-   —→⟨ β-ƛ V-zero ⟩
-    (ƛ `suc ` Z) · ((ƛ `suc ` Z) · `zero)
-   —→⟨ ξ-·₂ V-ƛ (β-ƛ V-zero) ⟩
-    (ƛ `suc ` Z) · `suc `zero
-   —→⟨ β-ƛ (V-suc V-zero) ⟩
-    `suc (`suc `zero)
-   ∎)
-   (done (V-suc (V-suc V-zero)))
-_ = refl
+--_ : eval (gas 100) (twoᶜ · sucᶜ · `zero) ≡
+--  steps
+--   ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) · `zero
+--   —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
+--    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) · `zero
+--   —→⟨ β-ƛ V-zero ⟩
+--    (ƛ `suc ` Z) · ((ƛ `suc ` Z) · `zero)
+--   —→⟨ ξ-·₂ V-ƛ (β-ƛ V-zero) ⟩
+--    (ƛ `suc ` Z) · `suc `zero
+--   —→⟨ β-ƛ (V-suc V-zero) ⟩
+--    `suc (`suc `zero)
+--   ∎)
+--   (done (V-suc (V-suc V-zero)))
+--_ = refl
 ```
 
 Two plus two is four:
 ```agda
-_ : eval (gas 100) (plus · two · two) ≡
-  steps
-   ((μ
-     (ƛ
-      (ƛ
-       case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-    · `suc (`suc `zero)
-    · `suc (`suc `zero)
-   —→⟨ ξ-·₁ (ξ-·₁ β-μ) ⟩
-    (ƛ
-     (ƛ
-      case (` (S Z)) (` Z)
-      (`suc
-       ((μ
-         (ƛ
-          (ƛ
-           case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-        · ` Z
-        · ` (S Z)))))
-    · `suc (`suc `zero)
-    · `suc (`suc `zero)
-   —→⟨ ξ-·₁ (β-ƛ (V-suc (V-suc V-zero))) ⟩
-    (ƛ
-     case (`suc (`suc `zero)) (` Z)
-     (`suc
-      ((μ
-        (ƛ
-         (ƛ
-          case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-       · ` Z
-       · ` (S Z))))
-    · `suc (`suc `zero)
-   —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
-    case (`suc (`suc `zero)) (`suc (`suc `zero))
-    (`suc
-     ((μ
-       (ƛ
-        (ƛ
-         case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-      · ` Z
-      · `suc (`suc `zero)))
-   —→⟨ β-suc (V-suc V-zero) ⟩
-    `suc
-    ((μ
-      (ƛ
-       (ƛ
-        case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-     · `suc `zero
-     · `suc (`suc `zero))
-   —→⟨ ξ-suc (ξ-·₁ (ξ-·₁ β-μ)) ⟩
-    `suc
-    ((ƛ
-      (ƛ
-       case (` (S Z)) (` Z)
-       (`suc
-        ((μ
-          (ƛ
-           (ƛ
-            case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-         · ` Z
-         · ` (S Z)))))
-     · `suc `zero
-     · `suc (`suc `zero))
-   —→⟨ ξ-suc (ξ-·₁ (β-ƛ (V-suc V-zero))) ⟩
-    `suc
-    ((ƛ
-      case (`suc `zero) (` Z)
-      (`suc
-       ((μ
-         (ƛ
-          (ƛ
-           case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-        · ` Z
-        · ` (S Z))))
-     · `suc (`suc `zero))
-   —→⟨ ξ-suc (β-ƛ (V-suc (V-suc V-zero))) ⟩
-    `suc
-    case (`suc `zero) (`suc (`suc `zero))
-    (`suc
-     ((μ
-       (ƛ
-        (ƛ
-         case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-      · ` Z
-      · `suc (`suc `zero)))
-   —→⟨ ξ-suc (β-suc V-zero) ⟩
-    `suc
-    (`suc
-     ((μ
-       (ƛ
-        (ƛ
-         case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-      · `zero
-      · `suc (`suc `zero)))
-   —→⟨ ξ-suc (ξ-suc (ξ-·₁ (ξ-·₁ β-μ))) ⟩
-    `suc
-    (`suc
-     ((ƛ
-       (ƛ
-        case (` (S Z)) (` Z)
-        (`suc
-         ((μ
-           (ƛ
-            (ƛ
-             case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-          · ` Z
-          · ` (S Z)))))
-      · `zero
-      · `suc (`suc `zero)))
-   —→⟨ ξ-suc (ξ-suc (ξ-·₁ (β-ƛ V-zero))) ⟩
-    `suc
-    (`suc
-     ((ƛ
-       case `zero (` Z)
-       (`suc
-        ((μ
-          (ƛ
-           (ƛ
-            case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-         · ` Z
-         · ` (S Z))))
-      · `suc (`suc `zero)))
-   —→⟨ ξ-suc (ξ-suc (β-ƛ (V-suc (V-suc V-zero)))) ⟩
-    `suc
-    (`suc
-     case `zero (`suc (`suc `zero))
-     (`suc
-      ((μ
-        (ƛ
-         (ƛ
-          case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
-       · ` Z
-       · `suc (`suc `zero))))
-   —→⟨ ξ-suc (ξ-suc β-zero) ⟩
-    `suc (`suc (`suc (`suc `zero)))
-   ∎)
-   (done (V-suc (V-suc (V-suc (V-suc V-zero)))))
-_ = refl
+--_ : eval (gas 100) (plus · two · two) ≡
+--  steps
+--   ((μ
+--     (ƛ
+--      (ƛ
+--       case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--    · `suc (`suc `zero)
+--    · `suc (`suc `zero)
+--   —→⟨ ξ-·₁ (ξ-·₁ β-μ) ⟩
+--    (ƛ
+--     (ƛ
+--      case (` (S Z)) (` Z)
+--      (`suc
+--       ((μ
+--         (ƛ
+--          (ƛ
+--           case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--        · ` Z
+--        · ` (S Z)))))
+--    · `suc (`suc `zero)
+--    · `suc (`suc `zero)
+--   —→⟨ ξ-·₁ (β-ƛ (V-suc (V-suc V-zero))) ⟩
+--    (ƛ
+--     case (`suc (`suc `zero)) (` Z)
+--     (`suc
+--      ((μ
+--        (ƛ
+--         (ƛ
+--          case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--       · ` Z
+--       · ` (S Z))))
+--    · `suc (`suc `zero)
+--   —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
+--    case (`suc (`suc `zero)) (`suc (`suc `zero))
+--    (`suc
+--     ((μ
+--       (ƛ
+--        (ƛ
+--         case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--      · ` Z
+--      · `suc (`suc `zero)))
+--   —→⟨ β-suc (V-suc V-zero) ⟩
+--    `suc
+--    ((μ
+--      (ƛ
+--       (ƛ
+--        case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--     · `suc `zero
+--     · `suc (`suc `zero))
+--   —→⟨ ξ-suc (ξ-·₁ (ξ-·₁ β-μ)) ⟩
+--    `suc
+--    ((ƛ
+--      (ƛ
+--       case (` (S Z)) (` Z)
+--       (`suc
+--        ((μ
+--          (ƛ
+--           (ƛ
+--            case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--         · ` Z
+--         · ` (S Z)))))
+--     · `suc `zero
+--     · `suc (`suc `zero))
+--   —→⟨ ξ-suc (ξ-·₁ (β-ƛ (V-suc V-zero))) ⟩
+--    `suc
+--    ((ƛ
+--      case (`suc `zero) (` Z)
+--      (`suc
+--       ((μ
+--         (ƛ
+--          (ƛ
+--           case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--        · ` Z
+--        · ` (S Z))))
+--     · `suc (`suc `zero))
+--   —→⟨ ξ-suc (β-ƛ (V-suc (V-suc V-zero))) ⟩
+--    `suc
+--    case (`suc `zero) (`suc (`suc `zero))
+--    (`suc
+--     ((μ
+--       (ƛ
+--        (ƛ
+--         case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--      · ` Z
+--      · `suc (`suc `zero)))
+--   —→⟨ ξ-suc (β-suc V-zero) ⟩
+--    `suc
+--    (`suc
+--     ((μ
+--       (ƛ
+--        (ƛ
+--         case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--      · `zero
+--      · `suc (`suc `zero)))
+--   —→⟨ ξ-suc (ξ-suc (ξ-·₁ (ξ-·₁ β-μ))) ⟩
+--    `suc
+--    (`suc
+--     ((ƛ
+--       (ƛ
+--        case (` (S Z)) (` Z)
+--        (`suc
+--         ((μ
+--           (ƛ
+--            (ƛ
+--             case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--          · ` Z
+--          · ` (S Z)))))
+--      · `zero
+--      · `suc (`suc `zero)))
+--   —→⟨ ξ-suc (ξ-suc (ξ-·₁ (β-ƛ V-zero))) ⟩
+--    `suc
+--    (`suc
+--     ((ƛ
+--       case `zero (` Z)
+--       (`suc
+--        ((μ
+--          (ƛ
+--           (ƛ
+--            case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--         · ` Z
+--         · ` (S Z))))
+--      · `suc (`suc `zero)))
+--   —→⟨ ξ-suc (ξ-suc (β-ƛ (V-suc (V-suc V-zero)))) ⟩
+--    `suc
+--    (`suc
+--     case `zero (`suc (`suc `zero))
+--     (`suc
+--      ((μ
+--        (ƛ
+--         (ƛ
+--          case (` (S Z)) (` Z) (`suc (` (S (S (S Z))) · ` Z · ` (S Z))))))
+--       · ` Z
+--       · `suc (`suc `zero))))
+--   —→⟨ ξ-suc (ξ-suc β-zero) ⟩
+--    `suc (`suc (`suc (`suc `zero)))
+--   ∎)
+--   (done (V-suc (V-suc (V-suc (V-suc V-zero)))))
+--_ = refl
 ```
 
 And the corresponding term for Church numerals:
 ```agda
-_ : eval (gas 100) (plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero) ≡
-  steps
-   ((ƛ
-     (ƛ
-      (ƛ (ƛ ` (S (S (S Z))) · ` (S Z) · (` (S (S Z)) · ` (S Z) · ` Z)))))
-    · (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z)))
-    · (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z)))
-    · (ƛ `suc ` Z)
-    · `zero
-   —→⟨ ξ-·₁ (ξ-·₁ (ξ-·₁ (β-ƛ V-ƛ))) ⟩
-    (ƛ
-     (ƛ
-      (ƛ
-       (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · ` (S Z) ·
-       (` (S (S Z)) · ` (S Z) · ` Z))))
-    · (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z)))
-    · (ƛ `suc ` Z)
-    · `zero
-   —→⟨ ξ-·₁ (ξ-·₁ (β-ƛ V-ƛ)) ⟩
-    (ƛ
-     (ƛ
-      (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · ` (S Z) ·
-      ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · ` (S Z) · ` Z)))
-    · (ƛ `suc ` Z)
-    · `zero
-   —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
-    (ƛ
-     (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) ·
-     ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) · ` Z))
-    · `zero
-   —→⟨ β-ƛ V-zero ⟩
-    (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) ·
-    ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) · `zero)
-   —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
-    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) ·
-    ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) · `zero)
-   —→⟨ ξ-·₂ V-ƛ (ξ-·₁ (β-ƛ V-ƛ)) ⟩
-    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) ·
-    ((ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) · `zero)
-   —→⟨ ξ-·₂ V-ƛ (β-ƛ V-zero) ⟩
-    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) ·
-    ((ƛ `suc ` Z) · ((ƛ `suc ` Z) · `zero))
-   —→⟨ ξ-·₂ V-ƛ (ξ-·₂ V-ƛ (β-ƛ V-zero)) ⟩
-    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) ·
-    ((ƛ `suc ` Z) · `suc `zero)
-   —→⟨ ξ-·₂ V-ƛ (β-ƛ (V-suc V-zero)) ⟩
-    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) · `suc (`suc `zero)
-   —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
-    (ƛ `suc ` Z) · ((ƛ `suc ` Z) · `suc (`suc `zero))
-   —→⟨ ξ-·₂ V-ƛ (β-ƛ (V-suc (V-suc V-zero))) ⟩
-    (ƛ `suc ` Z) · `suc (`suc (`suc `zero))
-   —→⟨ β-ƛ (V-suc (V-suc (V-suc V-zero))) ⟩
-    `suc (`suc (`suc (`suc `zero)))
-   ∎)
-   (done (V-suc (V-suc (V-suc (V-suc V-zero)))))
-_ = refl
+--_ : eval (gas 100) (plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero) ≡
+--  steps
+--   ((ƛ
+--     (ƛ
+--      (ƛ (ƛ ` (S (S (S Z))) · ` (S Z) · (` (S (S Z)) · ` (S Z) · ` Z)))))
+--    · (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z)))
+--    · (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z)))
+--    · (ƛ `suc ` Z)
+--    · `zero
+--   —→⟨ ξ-·₁ (ξ-·₁ (ξ-·₁ (β-ƛ V-ƛ))) ⟩
+--    (ƛ
+--     (ƛ
+--      (ƛ
+--       (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · ` (S Z) ·
+--       (` (S (S Z)) · ` (S Z) · ` Z))))
+--    · (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z)))
+--    · (ƛ `suc ` Z)
+--    · `zero
+--   —→⟨ ξ-·₁ (ξ-·₁ (β-ƛ V-ƛ)) ⟩
+--    (ƛ
+--     (ƛ
+--      (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · ` (S Z) ·
+--      ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · ` (S Z) · ` Z)))
+--    · (ƛ `suc ` Z)
+--    · `zero
+--   —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
+--    (ƛ
+--     (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) ·
+--     ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) · ` Z))
+--    · `zero
+--   —→⟨ β-ƛ V-zero ⟩
+--    (ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) ·
+--    ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) · `zero)
+--   —→⟨ ξ-·₁ (β-ƛ V-ƛ) ⟩
+--    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) ·
+--    ((ƛ (ƛ ` (S Z) · (` (S Z) · ` Z))) · (ƛ `suc ` Z) · `zero)
+--   —→⟨ ξ-·₂ V-ƛ (ξ-·₁ (β-ƛ V-ƛ)) ⟩
+--    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) ·
+--    ((ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) · `zero)
+--   —→⟨ ξ-·₂ V-ƛ (β-ƛ V-zero) ⟩
+--    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) ·
+--    ((ƛ `suc ` Z) · ((ƛ `suc ` Z) · `zero))
+--   —→⟨ ξ-·₂ V-ƛ (ξ-·₂ V-ƛ (β-ƛ V-zero)) ⟩
+--    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) ·
+--    ((ƛ `suc ` Z) · `suc `zero)
+--   —→⟨ ξ-·₂ V-ƛ (β-ƛ (V-suc V-zero)) ⟩
+--    (ƛ (ƛ `suc ` Z) · ((ƛ `suc ` Z) · ` Z)) · `suc (`suc `zero)
+--   —→⟨ β-ƛ (V-suc (V-suc V-zero)) ⟩
+--    (ƛ `suc ` Z) · ((ƛ `suc ` Z) · `suc (`suc `zero))
+--   —→⟨ ξ-·₂ V-ƛ (β-ƛ (V-suc (V-suc V-zero))) ⟩
+--    (ƛ `suc ` Z) · `suc (`suc (`suc `zero))
+--   —→⟨ β-ƛ (V-suc (V-suc (V-suc V-zero))) ⟩
+--    `suc (`suc (`suc (`suc `zero)))
+--   ∎)
+--   (done (V-suc (V-suc (V-suc (V-suc V-zero)))))
+--_ = refl
 ```
 
 We omit the proof that reduction is deterministic, since it is
