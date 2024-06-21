@@ -591,6 +591,7 @@ data Type : Set where
   Nat   : Type
   _`×_  : Type → Type → Type
   _`⊎_  : Type → Type → Type
+  𝟙 : Type
 ```
 
 ### Contexts
@@ -729,6 +730,9 @@ data _⊢_ : Context → Type → Set where
       --------------
     → Γ ⊢ C
 
+  [] : ∀ {Γ}
+     → Γ ⊢ 𝟙
+
 ```
 
 ### Abbreviating de Bruijn indices
@@ -785,6 +789,7 @@ rename ρ `⟨ M , N ⟩     =  `⟨ rename ρ M , rename ρ N ⟩
 rename ρ (`proj₁ L)     =  `proj₁ (rename ρ L)
 rename ρ (`proj₂ L)     =  `proj₂ (rename ρ L)
 rename ρ (case× L M)    =  case× (rename ρ L) (rename (ext (ext ρ)) M)
+rename ρ [] = []
 ```
 
 ## Simultaneous Substitution
@@ -812,6 +817,7 @@ subst σ `⟨ M , N ⟩     =  `⟨ subst σ M , subst σ N ⟩
 subst σ (`proj₁ L)     =  `proj₁ (subst σ L)
 subst σ (`proj₂ L)     =  `proj₂ (subst σ L)
 subst σ (case× L M)    =  case× (subst σ L) (subst (exts (exts σ)) M)
+subst σ [] = []
 ```
 
 ## Single and double substitution
@@ -887,6 +893,10 @@ data Value : ∀ {Γ A} → Γ ⊢ A → Set where
     → Value W
       ----------------
     → Value `⟨ V , W ⟩
+
+  V-[] : ∀ {Γ}
+    → Value ([] {Γ})
+
 ```
 
 Implicit arguments need to be supplied when they are
@@ -1095,6 +1105,7 @@ V¬—→ (V-right VM)  (ξ-right M—→M′)    =  V¬—→ VM M—→M′
 V¬—→ V-con        ()
 V¬—→ V-⟨ VM , _ ⟩ (ξ-⟨,⟩₁ M—→M′)    =  V¬—→ VM M—→M′
 V¬—→ V-⟨ _ , VN ⟩ (ξ-⟨,⟩₂ _ N—→N′)  =  V¬—→ VN N—→N′
+V¬—→ V-[]         ()
 ```
 
 
@@ -1166,6 +1177,7 @@ progress (`proj₂ L) with progress L
 progress (case× L M) with progress L
 ...    | step L—→L′                         =  step (ξ-case× L—→L′)
 ...    | done (V-⟨ VM , VN ⟩)               =  step (β-case× VM VN)
+progress []                                =  done V-[]
 ```
 
 
@@ -1283,23 +1295,17 @@ _ =
      `⟨ `zero , con 42 ⟩
    ∎
 
-unit : Type
-unit = `ℕ -- placeholder
-unitval : ∀ {Γ} -> Γ ⊢ unit
-unitval = `suc `zero
-
-pred : ∅ ⊢ `ℕ ⇒ `ℕ `⊎ unit
-pred = ƛ case (# 0) (`right unitval or `ℕ) (`left (# 0) or unit)
+pred : ∅ ⊢ `ℕ ⇒ `ℕ `⊎ 𝟙
+pred = ƛ case (# 0) (`right [] or `ℕ) (`left (# 0) or 𝟙)
 
 _ : eval (gas 100) (pred · (`suc (`suc (`suc `zero)))) ≡
   steps
-  ((ƛ case (` Z) (`right `suc `zero or `ℕ) (`left ` Z or `ℕ)) ·
+  ((ƛ case (` Z) (`right [] or `ℕ) (`left ` Z or 𝟙)) ·
    `suc (`suc (`suc `zero))
    —→⟨ β-ƛ (V-suc (V-suc (V-suc V-zero))) ⟩
-   case (`suc (`suc (`suc `zero))) (`right `suc `zero or `ℕ)
-   (`left ` Z or `ℕ)
+   case (`suc (`suc (`suc `zero))) (`right [] or `ℕ) (`left ` Z or 𝟙)
    —→⟨ β-suc (V-suc (V-suc V-zero)) ⟩
-   (`left `suc (`suc `zero) or `ℕ) ∎)
+   (`left `suc (`suc `zero) or 𝟙) ∎)
   (done (V-left (V-suc (V-suc V-zero))))
 _ = refl
 
