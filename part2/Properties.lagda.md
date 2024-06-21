@@ -1305,23 +1305,24 @@ unstuck (⊢μ typing)  ⟨ normal , nonvalue ⟩  = normal β-μ
 Using preservation, it is easy to show that after any number of steps,
 a well-typed term remains well typed:
 ```agda
-postulate
-  preserves : ∀ {M N A}
-    → ∅ ⊢ M ⦂ A
-    → M —↠ N
-      ---------
-    → ∅ ⊢ N ⦂ A
+preserves : ∀ {M N A}
+  → ∅ ⊢ M ⦂ A
+  → M —↠ N
+    ---------
+  → ∅ ⊢ N ⦂ A
+preserves typing (_ ∎) = typing
+preserves typing (_ —→⟨ one ⟩ many) = preserves (preserve typing one) many
 ```
 
 An easy consequence is that starting from a well-typed term, taking
 any number of reduction steps leads to a term that is not stuck:
 ```agda
-postulate
-  wttdgs : ∀ {M N A}
-    → ∅ ⊢ M ⦂ A
-    → M —↠ N
-      -----------
-    → ¬ (Stuck N)
+wttdgs : ∀ {M N A}
+  → ∅ ⊢ M ⦂ A
+  → M —↠ N
+    -----------
+  → ¬ (Stuck N)
+wttdgs typing reduction = unstuck (preserves typing reduction)
 ```
 Felleisen and Wright, who introduced proofs via progress and
 preservation, summarised this result with the slogan _well-typed terms
