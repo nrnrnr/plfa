@@ -4,7 +4,7 @@ permalink : /More/
 ---
 
 ```agda
-module plfa.part2.More where
+module cs.plfa.part2.More where
 ```
 
 So far, we have focussed on a relatively minimal language, based on
@@ -569,6 +569,7 @@ infix  4 _∋_
 infixl 5 _,_
 
 infixr 7 _⇒_
+infixr 8 _`⊎_
 infixr 9 _`×_
 
 infix  5 ƛ_
@@ -589,6 +590,7 @@ data Type : Set where
   _⇒_   : Type → Type → Type
   Nat   : Type
   _`×_  : Type → Type → Type
+  _`⊎_  : Type → Type → Type
 ```
 
 ### Contexts
@@ -656,6 +658,22 @@ data _⊢_ : Context → Type → Set where
     → Γ , `ℕ ⊢ A
       -----
     → Γ ⊢ A
+
+  `left_or_ : ∀ {Γ A}
+    → Γ ⊢ A
+    → (B : Type)
+    → Γ ⊢ A `⊎ B
+
+  `right_or_ : ∀ {Γ B}
+    → Γ ⊢ B
+    → (A : Type)
+    → Γ ⊢ A `⊎ B
+
+  ⊎-elim : ∀ {Γ A B C}
+    -> Γ ⊢ A `⊎ B
+    -> Γ , A ⊢ C
+    -> Γ , B ⊢ C
+    -> Γ ⊢ C
 
   -- fixpoint
 
@@ -756,6 +774,9 @@ rename ρ (L · M)        =  (rename ρ L) · (rename ρ M)
 rename ρ (`zero)        =  `zero
 rename ρ (`suc M)       =  `suc (rename ρ M)
 rename ρ (case L M N)   =  case (rename ρ L) (rename ρ M) (rename (ext ρ) N)
+rename ρ (`left M or B) =  `left (rename ρ M) or B
+rename ρ (`right M or B)=  `right (rename ρ M) or B
+rename ρ (⊎-elim L M N) =   ⊎-elim (rename ρ L) (rename (ext ρ) M) (rename (ext ρ) N)
 rename ρ (μ N)          =  μ (rename (ext ρ) N)
 rename ρ (con n)        =  con n
 rename ρ (M `* N)       =  rename ρ M `* rename ρ N
@@ -780,6 +801,9 @@ subst σ (L · M)        =  (subst σ L) · (subst σ M)
 subst σ (`zero)        =  `zero
 subst σ (`suc M)       =  `suc (subst σ M)
 subst σ (case L M N)   =  case (subst σ L) (subst σ M) (subst (exts σ) N)
+subst σ (`left M or B)      =  `left (subst σ M) or B
+subst σ (`right M or B)      =  `right (subst σ M) or B
+subst σ (⊎-elim L M N) =   ⊎-elim (subst σ L) (subst (exts σ) M) (subst (exts σ) N)
 subst σ (μ N)          =  μ (subst (exts σ) N)
 subst σ (con n)        =  con n
 subst σ (M `* N)       =  subst σ M `* subst σ N
@@ -839,6 +863,16 @@ data Value : ∀ {Γ A} → Γ ⊢ A → Set where
     → Value V
       --------------
     → Value (`suc V)
+
+  V-left : ∀ {Γ A B} {V : Γ ⊢ A}
+    → Value V
+      --------------
+    → Value (`left V or B)
+
+  V-right : ∀ {Γ A B} {V : Γ ⊢ A}
+    → Value V
+      --------------
+    → Value (`right V or B)
 
   -- primitives
 
@@ -903,6 +937,33 @@ data _—→_ : ∀ {Γ A} → (Γ ⊢ A) → (Γ ⊢ A) → Set where
     → Value V
       ----------------------------
     → case (`suc V) M N —→ N [ V ]
+
+
+  ξ-left : ∀ {Γ A B} {M M′ : Γ ⊢ A}
+    → M —→ M′
+      -----------------
+    → `left M or B —→ `left M′ or B
+
+  ξ-right : ∀ {Γ A B} {M M′ : Γ ⊢ A}
+    → M —→ M′
+      -----------------
+    → `right M or B —→ `right M′ or B
+
+  ξ-⊎-elim : ∀ {Γ A B C} {L L′ : Γ ⊢ A `⊎ B} {M : Γ , A ⊢ C} {N : Γ , B ⊢ C}
+    → L —→ L′
+      -------------------------
+    → ⊎-elim L M N —→ ⊎-elim L′ M N
+
+  β-left : ∀ {Γ A B C} {V : Γ ⊢ A} {M : Γ , A ⊢ C} {N : Γ , B ⊢ C}
+    → Value V
+      ----------------------------
+    → ⊎-elim (`left V or B) M N —→ M [ V ]
+
+  β-right : ∀ {Γ A B C} {V : Γ ⊢ B} {M : Γ , A ⊢ C} {N : Γ , B ⊢ C}
+    → Value V
+      ----------------------------
+    → ⊎-elim (`right V or A) M N —→ N [ V ]
+
 
   -- fixpoint
 
@@ -1029,6 +1090,8 @@ V¬—→ : ∀ {Γ A} {M N : Γ ⊢ A}
 V¬—→ V-ƛ          ()
 V¬—→ V-zero       ()
 V¬—→ (V-suc VM)   (ξ-suc M—→M′)     =  V¬—→ VM M—→M′
+V¬—→ (V-left VM)  (ξ-left M—→M′)    =  V¬—→ VM M—→M′
+V¬—→ (V-right VM)  (ξ-right M—→M′)    =  V¬—→ VM M—→M′
 V¬—→ V-con        ()
 V¬—→ V-⟨ VM , _ ⟩ (ξ-⟨,⟩₁ M—→M′)    =  V¬—→ VM M—→M′
 V¬—→ V-⟨ _ , VN ⟩ (ξ-⟨,⟩₂ _ N—→N′)  =  V¬—→ VN N—→N′
@@ -1069,6 +1132,16 @@ progress (case L M N) with progress L
 ...    | step L—→L′                         =  step (ξ-case L—→L′)
 ...    | done V-zero                        =  step β-zero
 ...    | done (V-suc VL)                    =  step (β-suc VL)
+progress (`left M or B) with progress M
+...    | step M—→M′                         =  step (ξ-left M—→M′)
+...    | done VM                            =  done (V-left VM)
+progress (`right M or B) with progress M
+...    | step M—→M′                         =  step (ξ-right M—→M′)
+...    | done VM                            =  done (V-right VM)
+progress (⊎-elim L M N) with progress L
+...    | step L—→L′                         =  step (ξ-⊎-elim L—→L′)
+...    | done (V-left VM)                   =  step (β-left VM)
+...    | done (V-right VM)                  =  step (β-right VM)
 progress (μ N)                              =  step β-μ
 progress (con n)                            =  done V-con
 progress (L `* M) with progress L
@@ -1209,6 +1282,27 @@ _ =
    —→⟨ β-case× V-con V-zero ⟩
      `⟨ `zero , con 42 ⟩
    ∎
+
+unit : Type
+unit = `ℕ -- placeholder
+unitval : ∀ {Γ} -> Γ ⊢ unit
+unitval = `suc `zero
+
+pred : ∅ ⊢ `ℕ ⇒ `ℕ `⊎ unit
+pred = ƛ case (# 0) (`right unitval or `ℕ) (`left (# 0) or unit)
+
+_ : eval (gas 100) (pred · (`suc (`suc (`suc `zero)))) ≡
+  steps
+  ((ƛ case (` Z) (`right `suc `zero or `ℕ) (`left ` Z or `ℕ)) ·
+   `suc (`suc (`suc `zero))
+   —→⟨ β-ƛ (V-suc (V-suc (V-suc V-zero))) ⟩
+   case (`suc (`suc (`suc `zero))) (`right `suc `zero or `ℕ)
+   (`left ` Z or `ℕ)
+   —→⟨ β-suc (V-suc (V-suc V-zero)) ⟩
+   (`left `suc (`suc `zero) or `ℕ) ∎)
+  (done (V-left (V-suc (V-suc V-zero))))
+_ = refl
+
 ```
 
 #### Exercise `More` (recommended and practice)
