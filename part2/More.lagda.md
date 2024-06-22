@@ -592,6 +592,7 @@ data Type : Set where
   _`×_  : Type → Type → Type
   _`⊎_  : Type → Type → Type
   𝟙 : Type
+  𝟘 : Type
 ```
 
 ### Contexts
@@ -660,6 +661,7 @@ data _⊢_ : Context → Type → Set where
       -----
     → Γ ⊢ A
 
+-- begin
   `left_or_ : ∀ {Γ A}
     → Γ ⊢ A
     → (B : Type)
@@ -675,6 +677,7 @@ data _⊢_ : Context → Type → Set where
     -> Γ , A ⊢ C
     -> Γ , B ⊢ C
     -> Γ ⊢ C
+-- end
 
   -- fixpoint
 
@@ -730,8 +733,18 @@ data _⊢_ : Context → Type → Set where
       --------------
     → Γ ⊢ C
 
+-- begin
   [] : ∀ {Γ}
      → Γ ⊢ 𝟙
+
+--  𝟘-elim : ∀ {A Γ}
+--     → Γ , 𝟘 ⊢ A
+
+  𝟘-elim : ∀ {A Γ} 
+     → Γ ∋ 𝟘
+     → Γ ⊢ A
+
+-- end
 
 ```
 
@@ -768,6 +781,9 @@ ext : ∀ {Γ Δ}
 ext ρ Z      =  Z
 ext ρ (S x)  =  S (ρ x)
 
+𝟘-to-any : ∀ {Γ A} → Γ ⊢ 𝟘 → Γ ⊢ A
+𝟘-to-any M = (ƛ 𝟘-elim Z) · M
+
 rename : ∀ {Γ Δ}
   → (∀ {A} → Γ ∋ A → Δ ∋ A)
     -----------------------
@@ -790,6 +806,7 @@ rename ρ (`proj₁ L)     =  `proj₁ (rename ρ L)
 rename ρ (`proj₂ L)     =  `proj₂ (rename ρ L)
 rename ρ (case× L M)    =  case× (rename ρ L) (rename (ext (ext ρ)) M)
 rename ρ [] = []
+rename ρ (𝟘-elim x) = 𝟘-elim (ρ x)
 ```
 
 ## Simultaneous Substitution
@@ -818,6 +835,7 @@ subst σ (`proj₁ L)     =  `proj₁ (subst σ L)
 subst σ (`proj₂ L)     =  `proj₂ (subst σ L)
 subst σ (case× L M)    =  case× (subst σ L) (subst (exts (exts σ)) M)
 subst σ [] = []
+subst σ (𝟘-elim x) = 𝟘-to-any (σ x)
 ```
 
 ## Single and double substitution
@@ -1178,6 +1196,7 @@ progress (case× L M) with progress L
 ...    | step L—→L′                         =  step (ξ-case× L—→L′)
 ...    | done (V-⟨ VM , VN ⟩)               =  step (β-case× VM VN)
 progress []                                =  done V-[]
+progress (𝟘-elim ())
 ```
 
 
