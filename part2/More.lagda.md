@@ -846,7 +846,14 @@ _[_] : ∀ {Γ A B}
   → Γ ⊢ B
     ---------
   → Γ ⊢ A
-_[_] {Γ} {A} {B} N M =  subst {Γ , B} {Γ} σ {A} N
+
+lemma-sigma : ∀ {Γ B}
+  → Γ ⊢ B
+  → (∀ {C} → Γ , B ∋ C → Γ ⊢ C)
+lemma-sigma M Z = M
+lemma-sigma _ (S x) = ` x
+
+_[_] {Γ} {A} {B} N M =  subst {Γ , B} {Γ} (lemma-sigma M) {A} N
   where
   σ : ∀ {A} → Γ , B ∋ A → Γ ⊢ A
   σ Z      =  M
@@ -858,7 +865,17 @@ _[_][_] : ∀ {Γ A B C}
   → Γ ⊢ B
     -------------
   → Γ ⊢ C
-_[_][_] {Γ} {A} {B} N V W =  subst {Γ , A , B} {Γ} σ N
+
+lemma-sigma-2 : ∀ {Γ A B}
+  → Γ ⊢ A
+  → Γ ⊢ B
+  → (∀ {C} → Γ , A , B ∋ C → Γ ⊢ C)
+lemma-sigma-2 V W Z = W
+lemma-sigma-2 V W (S Z) = V
+lemma-sigma-2 V W (S (S x)) = ` x
+
+
+_[_][_] {Γ} {A} {B} N V W =  subst {Γ , A , B} {Γ} (lemma-sigma-2 V W) N
   where
   σ : ∀ {C} → Γ , A , B ∋ C → Γ ⊢ C
   σ Z          =  W
@@ -1354,10 +1371,40 @@ Please delimit any code you add as follows:
 Show that a double substitution is equivalent to two single
 substitutions.
 ```agda
-postulate
-  double-subst :
-    ∀ {Γ A B C} {V : Γ ⊢ A} {W : Γ ⊢ B} {N : Γ , A , B ⊢ C} →
-      N [ V ][ W ] ≡ (N [ rename S_ W ]) [ V ]
+lemma : ∀ {Γ A B C}
+      → (N : Γ , A , B ⊢ C)
+      → (V : Γ ⊢ A)
+      → (W : Γ ⊢ B)
+      -> N [ V ][ W ] ≡ subst {Γ , A , B} {Γ} (lemma-sigma-2 V W) N
+lemma N V W  =  refl
+
+ where open Eq.≡-Reasoning using (_≡⟨⟩_; step-≡) renaming (begin_ to begin+_; _∎ to _∎+)
+
+
+--conjecture :
+--  ∀ {Γ A B C} (V : Γ ⊢ A) (W : Γ ⊢ B) (N : Γ , A , B ⊢ C) →
+--    N [ V ][ W ] ≡ (N [ rename S_ V ]) [ W ]
+--conjecture V W N = ?
+
+
+--double-subst :
+--  ∀ {Γ A B C} (V : Γ ⊢ A) (W : Γ ⊢ B) (N : Γ , A , B ⊢ C) →
+--    N [ V ][ W ] ≡ (N [ rename S_ W ]) [ V ]
+--double-subst {Γ} {A} {B} {C} V W N =
+--  begin+
+--    N [ V ][ W ]
+--  ≡⟨ refl ⟩
+--    subst {Γ , A , B} (lemma-sigma-2 V W) N
+--  ≡⟨ {!!} ⟩
+--    (N [ rename S_ W ]) [ V ]
+--  ∎+
+-- where open Eq.≡-Reasoning using (_≡⟨⟩_; step-≡) renaming (begin_ to begin+_; _∎ to _∎+)
+--       σ : ∀ {C} → Γ , A , B ∋ C → Γ ⊢ C
+--       σ Z          =  W
+--       σ (S Z)      =  V
+--       σ (S (S x))  =  ` x
+
+
 ```
 Note the arguments need to be swapped and `W` needs to have
 its context adjusted via renaming in order for the right-hand
