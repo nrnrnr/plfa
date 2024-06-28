@@ -1457,8 +1457,8 @@ Subst Γ Δ = ∀{A} → Γ ∋ A → Δ ⊢ A
 
 open import Function using (_∘_)
 
-ren : ∀{Γ Δ} → Rename Γ Δ → Subst Γ Δ
-ren ρ = (λ x -> ` x) ∘ ρ
+σ-of-ρ : ∀{Γ Δ} → Rename Γ Δ → Subst Γ Δ
+σ-of-ρ ρ = (λ x -> ` x) ∘ ρ
 
 postulate
   extensionality : ∀ {A B : Set} {f g : A → B}
@@ -1467,9 +1467,9 @@ postulate
     → f ≡ g
 
 ren-ext : ∀ {Γ Δ}{B C : Type} {ρ : Rename Γ Δ}
-        → ren (ext ρ) ≡ exts (ren ρ)
+        → σ-of-ρ (ext ρ) ≡ exts (σ-of-ρ ρ)
 ren-ext {Γ}{Δ}{B}{C}{ρ} = extensionality lemma
-  where lemma : ∀ (x : Γ , B ∋ C) -> ren (ext ρ) x ≡ exts (ren ρ) x
+  where lemma : ∀ (x : Γ , B ∋ C) -> σ-of-ρ (ext ρ) x ≡ exts (σ-of-ρ ρ) x
         lemma Z = refl
         lemma (S x) = refl
 
@@ -1509,7 +1509,7 @@ rename-subst-ren :  ∀ {Γ Δ A}
    → (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A)
    → (M : Γ ⊢ A)
    → (core : Core M)
-   → rename ρ M ≡ subst (ren ρ) M
+   → rename ρ M ≡ subst (σ-of-ρ ρ) M
 rename-subst-ren ρ (` x) c-` = refl
 rename-subst-ren ρ (M · N) (c-· core core₁) =
    cong₂ _·_ (rename-subst-ren ρ M core) (rename-subst-ren ρ N core₁)
@@ -1517,24 +1517,24 @@ rename-subst-ren ρ (ƛ M) (c-ƛ core) =
   begin+
     ƛ rename (ext ρ) M
   ≡⟨ cong ƛ_ (rename-subst-ren (ext ρ) M core) ⟩
-    ƛ subst (ren (ext ρ)) M
+    ƛ subst (σ-of-ρ (ext ρ)) M
   ≡⟨ cong ƛ_ (cong-subst M core (ren-ext {ρ = ρ})) ⟩
-    ƛ subst (exts (ren ρ)) M
+    ƛ subst (exts (σ-of-ρ ρ)) M
   ∎+
 
  where open Eq.≡-Reasoning using (_≡⟨⟩_; step-≡) renaming (begin_ to begin+_; _∎ to _∎+)
 
 rename-subst-ren ρ (`let M N) (c-let cM cN) =
   cong₂ `let (rename-subst-ren ρ M cM) lemma
- where lemma : rename (ext ρ) N ≡ subst (exts (ren ρ)) N
+ where lemma : rename (ext ρ) N ≡ subst (exts (σ-of-ρ ρ)) N
        open Eq.≡-Reasoning using (_≡⟨⟩_; step-≡) renaming (begin_ to begin+_; _∎ to _∎+)
        lemma =
          begin+
            rename (ext ρ) N
          ≡⟨ rename-subst-ren (ext ρ) N cN ⟩
-            subst (ren (ext ρ)) N
+            subst (σ-of-ρ (ext ρ)) N
          ≡⟨ cong-subst N cN ren-ext ⟩
-            subst (exts (ren ρ)) N
+            subst (exts (σ-of-ρ ρ)) N
          ∎+
 
 
