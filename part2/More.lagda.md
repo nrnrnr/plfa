@@ -553,7 +553,7 @@ and leave formalisation of the remaining constructs as an exercise.
 
 ```agda
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl)
+open Eq using (_≡_; refl; cong; cong₂; cong-app; sym)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Nat using (ℕ; zero; suc; _*_; _<_; _≤?_; z≤n; s≤s)
 open import Relation.Nullary using (¬_)
@@ -836,6 +836,17 @@ subst σ (`proj₂ L)     =  `proj₂ (subst σ L)
 subst σ (case× L M)    =  case× (subst σ L) (subst (exts (exts σ)) M)
 subst σ [] = []
 subst σ (𝟘-elim x) = 𝟘-to-any (σ x)
+
+--infix 5 _>>>_
+--_>>>_ : ∀ {Γ Δ}
+--      → (∀ {C} → Γ ∋ C -> Δ ⊢ C)
+--      → (∀ {C} → Γ ∋ C -> Δ ⊢ C)
+--      → (∀ {C} → Γ ∋ C -> Δ ⊢ C)
+--(now >>> later) x with now x
+--... | ` y = later {!!}
+--... | M = {!!}
+
+
 ```
 
 ## Single and double substitution
@@ -847,9 +858,9 @@ _[_] : ∀ {Γ A B}
     ---------
   → Γ ⊢ A
 
-lemma-sigma : ∀ {Γ B}
-  → Γ ⊢ B
-  → (∀ {C} → Γ , B ∋ C → Γ ⊢ C)
+lemma-sigma : ∀ {Γ A}
+  → Γ ⊢ A
+  → (∀ {C} → Γ , A ∋ C → Γ ⊢ C)
 lemma-sigma M Z = M
 lemma-sigma _ (S x) = ` x
 
@@ -1371,20 +1382,379 @@ Please delimit any code you add as follows:
 Show that a double substitution is equivalent to two single
 substitutions.
 ```agda
-lemma : ∀ {Γ A B C}
-      → (N : Γ , A , B ⊢ C)
-      → (V : Γ ⊢ A)
-      → (W : Γ ⊢ B)
-      -> N [ V ][ W ] ≡ subst {Γ , A , B} {Γ} (lemma-sigma-2 V W) N
-lemma N V W  =  refl
+ignore-var : ∀ {Γ A C}
+           -> Γ ⊢ C
+           -> Γ , A ⊢ C
+--ignore-var W = subst (λ x → ` (S x)) W
+ignore-var W = rename S_ W
+
+-- relate ext and exts
+
+
+ext-theorem : ∀ {Γ Δ A B}
+            → (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A)
+            → (x : Γ , B ∋ A)
+            → ` (ext ρ x) ≡ exts (λ y -> ` (ρ y)) x
+ext-theorem ρ Z = refl
+ext-theorem ρ (S x) = refl
+
+--impl : ∀ {Γ C}
+--     -> (x : Γ ∋ C)
+--     -> rename S_ (` x) ≡ subst (λ x -> ` (S x)) (` x)
+--impl x = refl
+
+impl' : ∀ {Γ Δ C}
+     → (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A)
+     -> (x : Γ ∋ C)
+     -> rename ρ (` x) ≡ subst (λ x -> ` (ρ x)) (` x)
+impl' ρ x = refl
+
+-- if σ is ` ∘ ρ, then exts σ is ` ∘ ext ρ
+
+--σ-ρ : ∀ {Γ Δ}
+--   → (σ : ∀ {A} → Γ ∋ A → Δ ⊢ A)
+--   → (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A)
+--   → (∀ {B} (M : Γ ⊢ B) → rename ρ M ≡ subst σ M)
+--   → (∀ {B C} (M : Γ , C ⊢ B) → rename (ext ρ) M ≡ subst (exts σ) M)
+--σ-ρ σ ρ Ms-eq (` Z) = refl
+--σ-ρ σ ρ Ms-eq (` (S x)) with Ms-eq (` x)
+--... | thing = sym (
+--  begin+
+--    rename S_ (σ x)
+--  ≡⟨ cong (rename S_) (sym thing) ⟩     
+--    rename S_ (` ρ x)
+--  ≡⟨ refl ⟩
+--    ` (S ρ x)
+--  ∎+)
+--  where open Eq.≡-Reasoning using (_≡⟨⟩_; step-≡) renaming (begin_ to begin+_; _∎ to _∎+)
+--        open Eq using (sym)
+--
+--σ-ρ σ ρ Ms-eq (ƛ M) with σ-ρ (exts σ) (ext ρ) {!!} {!M!}
+--... | thing = {!!}
+--σ-ρ σ ρ Ms-eq (M · M₁) = {!!}
+--σ-ρ σ ρ Ms-eq `zero = {!!}
+--σ-ρ σ ρ Ms-eq (`suc M) = {!!}
+--σ-ρ σ ρ Ms-eq (case M M₁ M₂) = {!!}
+--σ-ρ σ ρ Ms-eq (`left M or B) = {!!}
+--σ-ρ σ ρ Ms-eq (`right M or A) = {!!}
+--σ-ρ σ ρ Ms-eq (⊎-elim M M₁ M₂) = {!!}
+--σ-ρ σ ρ Ms-eq (μ M) = {!!}
+--σ-ρ σ ρ Ms-eq (con x) = {!!}
+--σ-ρ σ ρ Ms-eq (M `* M₁) = {!!}
+--σ-ρ σ ρ Ms-eq (`let M M₁) = {!!}
+--σ-ρ σ ρ Ms-eq `⟨ M , M₁ ⟩ = {!!}
+--σ-ρ σ ρ Ms-eq (`proj₁ M) = {!!}
+--σ-ρ σ ρ Ms-eq (`proj₂ M) = {!!}
+--σ-ρ σ ρ Ms-eq (case× M M₁) = {!!}
+--σ-ρ σ ρ Ms-eq [] = {!!}
+--σ-ρ σ ρ Ms-eq (𝟘-elim x) = {!!}
+
+Rename : Context → Context → Set
+Rename Γ Δ = ∀{A} → Γ ∋ A → Δ ∋ A
+
+Subst : Context → Context → Set
+Subst Γ Δ = ∀{A} → Γ ∋ A → Δ ⊢ A
+
+open import Function using (_∘_)
+
+ren : ∀{Γ Δ} → Rename Γ Δ → Subst Γ Δ
+ren ρ = (λ x -> ` x) ∘ ρ
+
+postulate
+  extensionality : ∀ {A B : Set} {f g : A → B}
+    → (∀ (x : A) → f x ≡ g x)
+      -----------------------
+    → f ≡ g
+
+ren-ext : ∀ {Γ Δ}{B C : Type} {ρ : Rename Γ Δ}
+        → ren (ext ρ) ≡ exts (ren ρ)
+ren-ext {Γ}{Δ}{B}{C}{ρ} = extensionality lemma
+  where lemma : ∀ (x : Γ , B ∋ C) -> ren (ext ρ) x ≡ exts (ren ρ) x
+        lemma Z = refl
+        lemma (S x) = refl
+
+data Core : ∀  {Γ : Context} {A :  Type} -> Γ ⊢ A -> Set where
+  c-` : ∀ {Γ A} {x : Γ ∋ A} -> Core (` x)
+  c-· : ∀ {Γ A B} {M : Γ ⊢ A ⇒ B} {M' : Γ ⊢ A} -> Core M -> Core M' -> Core (M · M')
+  c-ƛ :  ∀ {Γ A B} {N : Γ , A ⊢ B} -> Core N -> Core (ƛ N)
+  c-let : ∀ {Γ A B} {M : Γ ⊢ A} {N : Γ , A ⊢ B} -> Core M -> Core N -> Core (`let M N)
+
+
+cong-exts-applied :  ∀ {Γ Δ A B} {σ σ' : ∀ {A} -> Γ ∋ A -> Δ ⊢ A}
+          -> σ ≡ σ'
+          -> (x : Γ , A ∋ B)
+          -> exts σ x ≡ exts σ' x
+cong-exts-applied {Γ} {σ = σ} {σ' = σ'} σ≡σ' Z = refl
+cong-exts-applied {Γ} {σ = σ} {σ' = σ'} σ≡σ' (S x) = cong (rename S_) (cong-app σ≡σ' x)
+
+cong-exts :  ∀ {Γ Δ} {σ σ' : ∀ {A} -> Γ ∋ A -> Δ ⊢ A} {B}
+          -> (∀ {A} → σ ≡ σ' {A})
+          -> (∀ {A} → exts σ {B = B} ≡ exts σ' {A})
+cong-exts {Γ} {σ = σ} {σ' = σ'} σ≡σ' = extensionality (cong-exts-applied σ≡σ')
+
+cong-subst : ∀ {Γ Δ A} {σ σ' : ∀ {A} -> Γ ∋ A -> Δ ⊢ A}
+           -> (M : Γ ⊢ A)
+           -> Core M
+           -> (∀ {A} → σ ≡ σ' {A})
+           -> subst σ M ≡ subst σ' M
+cong-subst (` x) core σ≡σ' = cong-app σ≡σ' x 
+cong-subst {Γ} {Δ} {_} {σ} {σ'} (ƛ M) (c-ƛ core) σ≡σ' =
+   cong ƛ_ (cong-subst M core (cong-exts σ≡σ'))
+cong-subst (M · M₁) (c-· core core₁) σ≡σ' =
+   cong₂ _·_ (cong-subst M core σ≡σ') (cong-subst M₁ core₁ σ≡σ')
+cong-subst (`let M N) (c-let core-M core-N) σ≡σ' =
+   cong₂ `let (cong-subst M core-M σ≡σ') ((cong-subst N core-N (cong-exts σ≡σ')))
+
+rename-subst-ren :  ∀ {Γ Δ A}
+   → (ρ : ∀ {A} → Γ ∋ A → Δ ∋ A)
+   → (M : Γ ⊢ A)
+   → (core : Core M)
+   → rename ρ M ≡ subst (ren ρ) M
+rename-subst-ren ρ (` x) c-` = refl
+rename-subst-ren ρ (M · N) (c-· core core₁) =
+   cong₂ _·_ (rename-subst-ren ρ M core) (rename-subst-ren ρ N core₁)
+rename-subst-ren ρ (ƛ M) (c-ƛ core) =
+  begin+
+    ƛ rename (ext ρ) M
+  ≡⟨ cong ƛ_ (rename-subst-ren (ext ρ) M core) ⟩
+    ƛ subst (ren (ext ρ)) M
+  ≡⟨ cong ƛ_ (cong-subst M core (ren-ext {ρ = ρ})) ⟩
+    ƛ subst (exts (ren ρ)) M
+  ∎+
 
  where open Eq.≡-Reasoning using (_≡⟨⟩_; step-≡) renaming (begin_ to begin+_; _∎ to _∎+)
 
+rename-subst-ren ρ (`let M N) (c-let cM cN) =
+  cong₂ `let (rename-subst-ren ρ M cM) lemma
+ where lemma : rename (ext ρ) N ≡ subst (exts (ren ρ)) N
+       open Eq.≡-Reasoning using (_≡⟨⟩_; step-≡) renaming (begin_ to begin+_; _∎ to _∎+)
+       lemma =
+         begin+
+           rename (ext ρ) N
+         ≡⟨ rename-subst-ren (ext ρ) N cN ⟩
+            subst (ren (ext ρ)) N
+         ≡⟨ cong-subst N cN ren-ext ⟩
+            subst (exts (ren ρ)) N
+         ∎+
 
---conjecture :
---  ∀ {Γ A B C} (V : Γ ⊢ A) (W : Γ ⊢ B) (N : Γ , A , B ⊢ C) →
---    N [ V ][ W ] ≡ (N [ rename S_ V ]) [ W ]
---conjecture V W N = ?
+
+
+
+
+----    ignore-theorem : ∀ {Γ A C}
+----                   -> (W : Γ ⊢ C)
+----                   -> rename S_ W ≡ subst (λ x -> ` (S x)) W
+----    ignore-theorem (` x) = refl
+----    ignore-theorem (ƛ W) = cong ƛ_ {!!}
+----    ignore-theorem (W · W₁) = cong₂ _·_ (ignore-theorem W) (ignore-theorem W₁)
+----    ignore-theorem `zero = refl
+----    ignore-theorem (`suc W) = cong `suc_ (ignore-theorem W)
+----    ignore-theorem (case W W₁ W₂) = {!!}
+----    ignore-theorem (`left W or B) = {!!}
+----    ignore-theorem (`right W or A) = {!!}
+----    ignore-theorem (⊎-elim W W₁ W₂) = {!!}
+----    ignore-theorem (μ W) = {!!}
+----    ignore-theorem (con x) = {!!}
+----    ignore-theorem (W `* W₁) = {!!}
+----    ignore-theorem (`let W W₁) = {!!}
+----    ignore-theorem `⟨ W , W₁ ⟩ = {!!}
+----    ignore-theorem (`proj₁ W) = {!!}
+----    ignore-theorem (`proj₂ W) = {!!}
+----    ignore-theorem (case× W W₁) = {!!}
+----    ignore-theorem [] = {!!}
+----    ignore-theorem (𝟘-elim x) = {!!}
+----    
+----    partial : ∀ {Γ A B C}
+----          -> (Γ , A , B ⊢ C)
+----          -> (Γ ⊢ B)
+----          -> (Γ , A ⊢ C)
+----    partial {Γ} {A} {B} M W = subst σ M
+----      where σ : ∀ {C} -> Γ , A , B ∋ C -> Γ , A ⊢ C
+----            σ Z = ignore-var W
+----            σ (S x) = ` x
+----    
+----    
+----    --ext-lemma : ∀ {Γ A B C} (V : Γ ⊢ A) (W : Γ , A ⊢ B) (σ : ∀ {C} -> Γ , A ∋ C -> Γ ⊢ C)
+----    --  -> W ≡ subst (exts (lemma-sigma V)) (rename S_ W)
+----    --          -> ignore-var W ≡ subst (exts σ) (rename (ext S_) (ignore-var W))
+----    --ext-lemma W σ eq = {!!}
+----    
+----    -- exts (lemma-sigma V) Z == Z --- not possible
+----    
+----    -- exts (lemma-sigma V) (S Z) == rename S_ V
+----    -- exts (lemma-sigma V) (S (S x)) == rename S_ (` x) == S x
+----    
+----    -- lemma-sigma (rename S_ W) = W
+----    
+----    --simple : ∀ {Γ B} (W : Γ ⊢ B)
+----    --       -> subst (lemma-sigma (rename S_ W)) ≡ ignore-var W
+----    --simple W = ?
+----    
+----    
+----    
+----    simplify : ∀ {Γ A B C} (V : Γ ⊢ A) (W : Γ ⊢ C)
+----         -> W ≡ subst (lemma-sigma V) (rename S_ W)
+----    simplify V (` x) = {!!}
+----    simplify V (ƛ W) = {!!}
+----    simplify V (W · W₁) = {!!}
+----    simplify V `zero = {!!}
+----    simplify V (`suc W) = {!!}
+----    simplify V (case W W₁ W₂) = {!!}
+----    simplify V (`left W or B) = {!!}
+----    simplify V (`right W or A) = {!!}
+----    simplify V (⊎-elim W W₁ W₂) = {!!}
+----    simplify V (μ W) = {!!}
+----    simplify V (con x) = {!!}
+----    simplify V (W `* W₁) = {!!}
+----    simplify V (`let W W₁) = {!!}
+----    simplify V `⟨ W , W₁ ⟩ = {!!}
+----    simplify V (`proj₁ W) = {!!}
+----    simplify V (`proj₂ W) = {!!}
+----    simplify V (case× W W₁) = {!!}
+----    simplify V [] = {!!}
+----    simplify V (𝟘-elim x) = {!!}
+----    
+----    -- exts (lemma-sigma V) Z     = ` Z
+----    -- exts (lemma-sigma V) (S Z) = rename S_ (lemma-sigma V Z) = rename S_ V
+----    -- exts (lemma-sigma V) (S (S x)) = rename S_ (` (S x)) = S (S x)
+----    
+----    -- rename (ext S_) W = --- preserves Z in W
+----    --                     --- renames S x to S (S x) and so on
+----    -- 
+----    
+----    -- theorem: (lemma-sigma V) (ext S_ x) = ` x
+----    
+----    mytheorem : ∀ {Γ A C} (V : Γ ⊢ A) (x : Γ , A ∋ C)
+----              -> exts (lemma-sigma V) (ext S_ x) ≡ ` x
+----    mytheorem V Z = refl
+----    mytheorem V (S Z) = refl
+----    mytheorem V (S (S x)) = refl
+----    
+----    
+----    body : ∀ {Γ A B C} (V : Γ ⊢ A) (W : Γ , B ⊢ C)
+----         -> W ≡ subst (exts (lemma-sigma V)) (rename (ext S_) W)
+----    body V (` Z) = refl
+----    body V (` (S x)) = refl
+----    body V (ƛ W) = {!!}
+----    body V (W · W₁) = {!!}
+----    body V `zero = refl
+----    body V (`suc W) = {!!}
+----    body V (case W W₁ W₂) = {!!}
+----    body V (`left W or B) = {!!}
+----    body V (`right W or A) = {!!}
+----    body V (⊎-elim W W₁ W₂) = {!!}
+----    body V (μ W) = {!!}
+----    body V (con x) = refl
+----    body V (W `* W₁) = {!!}
+----    body V (`let W W₁) = {!!}
+----    body V `⟨ W , W₁ ⟩ = {!!}
+----    body V (`proj₁ W) = {!!}
+----    body V (`proj₂ W) = {!!}
+----    body V (case× W W₁) = {!!}
+----    body V [] = refl
+----    body V (𝟘-elim x) = {!!}
+----    
+----    basis : ∀ {Γ A B C} (V : Γ ⊢ A) (W : Γ ⊢ B)
+----          -> (x : Γ , A , B ∋ C)
+----          -> lemma-sigma-2 V W x ≡
+----                subst (lemma-sigma V) (lemma-sigma (rename S_ W) x)
+----    basis V (` x) Z = refl
+----    basis {C = D ⇒ E} V (ƛ W) Z = cong ƛ_ {!!}
+----    basis V (W · W₁) Z = cong₂ _·_ (basis V W Z) (basis V W₁ Z)
+----    basis V `zero Z = refl
+----    basis V (`suc W) Z = cong `suc_ (basis V W Z)
+----    basis V (case W W₁ W₂) Z = {!!}
+----    basis V (`left W or B) Z = {!!}
+----    basis V (`right W or A) Z = {!!}
+----    basis V (⊎-elim W W₁ W₂) Z = {!!}
+----    basis V (μ W) Z = {!!}
+----    basis V (con x) Z = {!!}
+----    basis V (W `* W₁) Z = {!!}
+----    basis V (`let W W₁) Z = {!!}
+----    basis V `⟨ W , W₁ ⟩ Z = {!!}
+----    basis V (`proj₁ W) Z = {!!}
+----    basis V (`proj₂ W) Z = {!!}
+----    basis V (case× W W₁) Z = {!!}
+----    basis V [] Z = {!!}
+----    basis V (𝟘-elim x) Z = {!!}
+----    basis V (` x) (S Z) = {!!}
+----    basis V (ƛ W) (S Z) = refl
+----    basis V (W · W₁) (S Z) = {!!}
+----    basis V `zero (S Z) = {!!}
+----    basis V (`suc W) (S Z) = {!!}
+----    basis V (case W W₁ W₂) (S Z) = {!!}
+----    basis V (`left W or B) (S Z) = {!!}
+----    basis V (`right W or A) (S Z) = {!!}
+----    basis V (⊎-elim W W₁ W₂) (S Z) = {!!}
+----    basis V (μ W) (S Z) = {!!}
+----    basis V (con x) (S Z) = {!!}
+----    basis V (W `* W₁) (S Z) = {!!}
+----    basis V (`let W W₁) (S Z) = {!!}
+----    basis V `⟨ W , W₁ ⟩ (S Z) = {!!}
+----    basis V (`proj₁ W) (S Z) = {!!}
+----    basis V (`proj₂ W) (S Z) = {!!}
+----    basis V (case× W W₁) (S Z) = {!!}
+----    basis V [] (S Z) = {!!}
+----    basis V (𝟘-elim x) (S Z) = {!!}
+----    basis V (` x₁) (S (S x)) = {!!}
+----    basis V (ƛ W) (S (S x)) = refl
+----    basis V (W · W₁) (S (S x)) = {!!}
+----    basis V `zero (S (S x)) = {!!}
+----    basis V (`suc W) (S (S x)) = {!!}
+----    basis V (case W W₁ W₂) (S (S x)) = {!!}
+----    basis V (`left W or B) (S (S x)) = {!!}
+----    basis V (`right W or A) (S (S x)) = {!!}
+----    basis V (⊎-elim W W₁ W₂) (S (S x)) = {!!}
+----    basis V (μ W) (S (S x)) = {!!}
+----    basis V (con x₁) (S (S x)) = {!!}
+----    basis V (W `* W₁) (S (S x)) = {!!}
+----    basis V (`let W W₁) (S (S x)) = {!!}
+----    basis V `⟨ W , W₁ ⟩ (S (S x)) = {!!}
+----    basis V (`proj₁ W) (S (S x)) = {!!}
+----    basis V (`proj₂ W) (S (S x)) = {!!}
+----    basis V (case× W W₁) (S (S x)) = {!!}
+----    basis V [] (S (S x)) = {!!}
+----    basis V (𝟘-elim x₁) (S (S x)) = {!!}
+----    
+----    lemma : ∀ {Γ A B C}
+----          → (N : Γ , A , B ⊢ C)
+----          → (V : Γ ⊢ A)
+----          → (W : Γ ⊢ B)
+----          -> N [ V ][ W ] ≡ subst {Γ , A , B} {Γ} (lemma-sigma-2 V W) N
+----    lemma N V W  =  refl
+----    
+----     where open Eq.≡-Reasoning using (_≡⟨⟩_; step-≡) renaming (begin_ to begin+_; _∎ to _∎+)
+----    
+----    
+----    conjecture0 :
+----      ∀ {Γ A B C} (V : Γ ⊢ A) (W : Γ ⊢ B) (N : Γ , A , B ⊢ C) →
+----        N [ V ][ W ] ≡ (partial N W) [ V ]
+----    conjecture0 V W N = {!!}
+----    
+----    
+----    
+----    conjecture :
+----      ∀ {Γ A B C} (V : Γ ⊢ A) (W : Γ ⊢ B) (N : Γ , A , B ⊢ C) →
+----        N [ V ][ W ] ≡ (N [ rename S_ W ]) [ V ]
+----    conjecture V W (` x) = {!!}
+----    conjecture V W (ƛ N) = {!!}
+----    conjecture V W (N · N₁) = {!!}
+----    conjecture V W `zero = {!!}
+----    conjecture V W (`suc N) = {!!}
+----    conjecture V W (case N N₁ N₂) = {!!}
+----    conjecture V W (`left N or B) = {!!}
+----    conjecture V W (`right N or A) = {!!}
+----    conjecture V W (⊎-elim N N₁ N₂) = {!!}
+----    conjecture V W (μ N) = {!!}
+----    conjecture V W (con x) = {!!}
+----    conjecture V W (N `* N₁) = {!!}
+----    conjecture V W (`let N N₁) = {!!}
+----    conjecture V W `⟨ N , N₁ ⟩ = {!!}
+----    conjecture V W (`proj₁ N) = {!!}
+----    conjecture V W (`proj₂ N) = {!!}
+----    conjecture V W (case× N N₁) = {!!}
+----    conjecture V W [] = {!!}
+----    conjecture V W (𝟘-elim x) = {!!}
 
 
 --double-subst :
