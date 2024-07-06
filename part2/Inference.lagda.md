@@ -4,7 +4,7 @@ permalink : /Inference/
 ---
 
 ```agda
-module plfa.part2.Inference where
+module cs.plfa.part2.Inference where
 ```
 
 So far in our development, type derivations for the corresponding
@@ -261,7 +261,7 @@ can compare with our previous development, we import
 module `plfa.part2.More`:
 
 ```agda
-import plfa.part2.More as DB
+import cs.plfa.part2.MoreNR as DB
 ```
 
 The phrase `as DB` allows us to refer to definitions
@@ -285,10 +285,13 @@ infixr  7  _⇒_
 
 infix   5  ƛ_⇒_
 infix   5  μ_⇒_
+infix   5  `⟨_,_⟩
 infix   6  _↑
 infix   6  _↓_
 infixl  7  _·_
 infix   8  `suc_
+--infix   8  `proj₁_
+--infix   8  `proj₂_
 infix   9  `_
 ```
 
@@ -300,6 +303,7 @@ Id = String
 data Type : Set where
   `ℕ    : Type
   _⇒_   : Type → Type → Type
+  _`×_    : Type → Type → Type
 
 data Context : Set where
   ∅     : Context
@@ -319,7 +323,9 @@ data Term⁺ where
   `_                       : Id → Term⁺
   _·_                      : Term⁺ → Term⁻ → Term⁺
   _↓_                      : Term⁻ → Type → Term⁺
-
+  `proj₁ : Term⁺ → Term⁺
+  `proj₂ : Term⁺ → Term⁺
+  
 data Term⁻ where
   ƛ_⇒_                     : Id → Term⁻ → Term⁻
   `zero                    : Term⁻
@@ -327,6 +333,8 @@ data Term⁻ where
   `case_[zero⇒_|suc_⇒_]    : Term⁺ → Term⁻ → Id → Term⁻ → Term⁻
   μ_⇒_                     : Id → Term⁻ → Term⁻
   _↑                       : Term⁺ → Term⁻
+  `⟨_,_⟩                    : Term⁻ → Term⁻ → Term⁻
+
 ```
 The choice as to whether each term is synthesized or
 inherited follows the discussion above, and can be read
@@ -418,6 +426,18 @@ data _⊢_↑_ where
       ---------------
     → Γ ⊢ (M ↓ A) ↑ A
 
+
+  ⊢proj₁ : ∀ {Γ A B M}
+    → Γ ⊢ M ↑ A `× B
+      -----------
+    → Γ ⊢ `proj₁ M ↑ A
+
+  ⊢proj₂ : ∀ {Γ A B M}
+    → Γ ⊢ M ↑ A `× B
+      -----------
+    → Γ ⊢ `proj₂ M ↑ B
+
+
 data _⊢_↓_ where
 
   ⊢ƛ : ∀ {Γ x N A B}
@@ -451,6 +471,15 @@ data _⊢_↓_ where
     → A ≡ B
       -------------
     → Γ ⊢ (M ↑) ↓ B
+
+
+  ⊢⟨,⟩ : ∀ {Γ M N A B}
+    → Γ ⊢ M ↓ A
+    → Γ ⊢ N ↓ B
+      -----------
+    → Γ ⊢ `⟨ M , N ⟩ ↓ A `× B
+
+
 ```
 We follow the same convention as
 Chapter [Lambda](/Lambda/),
@@ -474,6 +503,13 @@ Rewrite your definition of multiplication from
 Chapter [Lambda](/Lambda/), decorated to support inference.
 
 ```agda
+mul : Term⁺
+mul = (μ "*" ⇒ ƛ "m" ⇒ ƛ "n" ⇒
+         `case (` "m")
+           [zero⇒ `zero
+           |suc "m" ⇒ (plus · (` "n" ↑) · (` "*" · (` "m" ↑) · (` "n" ↑) ↑)) ↑ ]) ↓ 
+       (`ℕ ⇒ `ℕ ⇒ `ℕ)
+
 -- Your code goes here
 ```
 
@@ -484,6 +520,8 @@ Extend the bidirectional type rules to include products from
 Chapter [More](/More/).
 
 ```agda
+
+
 -- Your code goes here
 ```
 
@@ -506,8 +544,17 @@ are equal.  It is straightforward to code:
 _≟Tp_ : (A B : Type) → Dec (A ≡ B)
 `ℕ      ≟Tp `ℕ              =  yes refl
 `ℕ      ≟Tp (A ⇒ B)         =  no λ()
+`ℕ      ≟Tp (A `× B)         =  no λ()
 (A ⇒ B) ≟Tp `ℕ              =  no λ()
+(A ⇒ B) ≟Tp (A′ `× B′)      =  no  λ()
 (A ⇒ B) ≟Tp (A′ ⇒ B′)
+  with A ≟Tp A′ | B ≟Tp B′
+...  | no A≢    | _         =  no λ{refl → A≢ refl}
+...  | yes _    | no B≢     =  no λ{refl → B≢ refl}
+...  | yes refl | yes refl  =  yes refl
+(A `× B) ≟Tp `ℕ              =  no λ()
+(A `× B) ≟Tp (A′ ⇒ B′)      =  no  λ()
+(A `× B) ≟Tp (A′ `× B′)
   with A ≟Tp A′ | B ≟Tp B′
 ...  | no A≢    | _         =  no λ{refl → A≢ refl}
 ...  | yes _    | no B≢     =  no λ{refl → B≢ refl}
@@ -522,6 +569,14 @@ dom≡ refl = refl
 
 rng≡ : ∀ {A A′ B B′} → A ⇒ B ≡ A′ ⇒ B′ → B ≡ B′
 rng≡ refl = refl
+
+proj₁≡ : ∀ {A A′ B B′} → A `× B ≡ A′ `× B′ → A ≡ A′
+proj₁≡ refl = refl
+
+proj₂≡ : ∀ {A A′ B B′} → A `× B ≡ A′ `× B′ → B ≡ B′
+proj₂≡ refl = refl
+
+
 ```
 
 We will also need to know that the types `` `ℕ ``
@@ -529,6 +584,16 @@ and `A ⇒ B` are not equal:
 ```agda
 ℕ≢⇒ : ∀ {A B} → `ℕ ≢ A ⇒ B
 ℕ≢⇒ ()
+```
+
+Ditto that a product type is not a function type or a natural number.
+```agda
+×≢⇒ :  ∀ {A B C D} → A `× B ≢ C ⇒ D
+×≢⇒ ()
+
+×≢ℕ :  ∀ {A B} → A `× B ≢ `ℕ
+×≢ℕ ()
+
 ```
 
 
@@ -561,6 +626,9 @@ uniq-↑ : ∀ {Γ M A B} → Γ ⊢ M ↑ A → Γ ⊢ M ↑ B → A ≡ B
 uniq-↑ (⊢` ∋x) (⊢` ∋x′)       =  uniq-∋ ∋x ∋x′
 uniq-↑ (⊢L · ⊢M) (⊢L′ · ⊢M′)  =  rng≡ (uniq-↑ ⊢L ⊢L′)
 uniq-↑ (⊢↓ ⊢M) (⊢↓ ⊢M′)       =  refl
+uniq-↑ (⊢proj₁ ⊢M) (⊢proj₁ ⊢M')  =  proj₁≡ (uniq-↑ ⊢M ⊢M')
+uniq-↑ (⊢proj₂ ⊢M) (⊢proj₂ ⊢M')  =  proj₂≡ (uniq-↑ ⊢M ⊢M')
+
 ```
 There are three possibilities for the term. If it is a variable,
 uniqueness of synthesis follows from uniqueness of lookup.
@@ -700,12 +768,25 @@ synthesize Γ (` x) with lookup Γ x
 synthesize Γ (L · M) with synthesize Γ L
 ... | no  ¬∃              =  no  (λ{ ⟨ _ , ⊢L  · _  ⟩  →  ¬∃ ⟨ _ , ⊢L ⟩ })
 ... | yes ⟨ `ℕ ,    ⊢L ⟩  =  no  (λ{ ⟨ _ , ⊢L′ · _  ⟩  →  ℕ≢⇒ (uniq-↑ ⊢L ⊢L′) })
+... | yes ⟨ A `× B ,  ⊢L ⟩  =  no  λ{ ⟨ _ , ⊢L' · _ ⟩ → ×≢⇒ (uniq-↑ ⊢L ⊢L')}
 ... | yes ⟨ A ⇒ B , ⊢L ⟩ with inherit Γ M A
 ...    | no  ¬⊢M          =  no  (¬arg ⊢L ¬⊢M)
 ...    | yes ⊢M           =  yes ⟨ B , ⊢L · ⊢M ⟩
 synthesize Γ (M ↓ A) with inherit Γ M A
 ... | no  ¬⊢M             =  no  (λ{ ⟨ _ , ⊢↓ ⊢M ⟩  →  ¬⊢M ⊢M })
 ... | yes ⊢M              =  yes ⟨ A , ⊢↓ ⊢M ⟩
+synthesize Γ (`proj₁ M) with synthesize Γ M
+... | yes ⟨ A `× B , ⊢M ⟩ = yes ⟨ A , ⊢proj₁ ⊢M ⟩
+... | yes ⟨ A ⇒ B , ⊢M ⟩ = no λ{ ⟨ _ , ⊢proj₁ ⊢M' ⟩ → ×≢⇒ (uniq-↑ ⊢M' ⊢M) }
+... | yes ⟨ `ℕ , ⊢M ⟩ = no λ{ ⟨ _ , ⊢proj₁ ⊢M' ⟩ → ×≢ℕ (uniq-↑ ⊢M' ⊢M) }
+... | no  ¬⊢M = no λ { ⟨ _ , ⊢proj₁ ⊢M ⟩ → ¬⊢M ⟨ _ , ⊢M ⟩ }
+synthesize Γ (`proj₂ M) with synthesize Γ M
+... | yes ⟨ A `× B , ⊢M ⟩ = yes ⟨ B , ⊢proj₂ ⊢M ⟩
+... | yes ⟨ A ⇒ B , ⊢M ⟩ = no λ{ ⟨ _ , ⊢proj₂ ⊢M' ⟩ → ×≢⇒ (uniq-↑ ⊢M' ⊢M) }
+... | yes ⟨ `ℕ , ⊢M ⟩ = no λ{ ⟨ _ , ⊢proj₂ ⊢M' ⟩ → ×≢ℕ (uniq-↑ ⊢M' ⊢M) }
+... | no  ¬⊢M = no λ { ⟨ _ , ⊢proj₂ ⊢M ⟩ → ¬⊢M ⟨ _ , ⊢M ⟩ }
+
+
 ```
 There are three cases:
 
@@ -758,23 +839,34 @@ There are three cases:
 We next consider the code for inheritance:
 ```agda
 inherit Γ (ƛ x ⇒ N) `ℕ      =  no  (λ())
+inherit Γ (ƛ x ⇒ N) (A `× B) =  no  (λ())
 inherit Γ (ƛ x ⇒ N) (A ⇒ B) with inherit (Γ , x ⦂ A) N B
 ... | no ¬⊢N                =  no  (λ{ (⊢ƛ ⊢N)  →  ¬⊢N ⊢N })
 ... | yes ⊢N                =  yes (⊢ƛ ⊢N)
 inherit Γ `zero `ℕ          =  yes ⊢zero
 inherit Γ `zero (A ⇒ B)     =  no  (λ())
+inherit Γ `zero (A `× B)     =  no  (λ())
 inherit Γ (`suc M) `ℕ with inherit Γ M `ℕ
 ... | no ¬⊢M                =  no  (λ{ (⊢suc ⊢M)  →  ¬⊢M ⊢M })
 ... | yes ⊢M                =  yes (⊢suc ⊢M)
 inherit Γ (`suc M) (A ⇒ B)  =  no  (λ())
+inherit Γ (`suc M) (A `× B)  =  no  (λ())
 inherit Γ (`case L [zero⇒ M |suc x ⇒ N ]) A with synthesize Γ L
 ... | no ¬∃                 =  no  (λ{ (⊢case ⊢L  _ _) → ¬∃ ⟨ `ℕ , ⊢L ⟩})
 ... | yes ⟨ _ ⇒ _ , ⊢L ⟩    =  no  (λ{ (⊢case ⊢L′ _ _) → ℕ≢⇒ (uniq-↑ ⊢L′ ⊢L) })
+... | yes ⟨ _ `× _ , ⊢L ⟩    =  no  (λ{ (⊢case ⊢L′ _ _) → ×≢ℕ (uniq-↑ ⊢L ⊢L′) })
 ... | yes ⟨ `ℕ ,    ⊢L ⟩ with inherit Γ M A
 ...    | no ¬⊢M             =  no  (λ{ (⊢case _ ⊢M _) → ¬⊢M ⊢M })
 ...    | yes ⊢M with inherit (Γ , x ⦂ `ℕ) N A
 ...       | no ¬⊢N          =  no  (λ{ (⊢case _ _ ⊢N) → ¬⊢N ⊢N })
 ...       | yes ⊢N          =  yes (⊢case ⊢L ⊢M ⊢N)
+inherit Γ (`⟨ M , N ⟩) `ℕ      =  no  (λ())
+inherit Γ (`⟨ M , N ⟩) (A ⇒ B) =  no  (λ())
+inherit Γ (`⟨ M , N ⟩) (A `× B) with inherit Γ M A
+... | no ¬⊢M = no λ { (⊢⟨,⟩ ⊢M _) → ¬⊢M ⊢M}
+... | yes ⊢M with inherit Γ N B
+...     | yes ⊢N = yes (⊢⟨,⟩ ⊢M ⊢N)
+...     | no ¬⊢N = no λ{ (⊢⟨,⟩ _ ⊢N) → ¬⊢N ⊢N}
 inherit Γ (μ x ⇒ N) A with inherit (Γ , x ⦂ A) N A
 ... | no ¬⊢N                =  no  (λ{ (⊢μ ⊢N) → ¬⊢N ⊢N })
 ... | yes ⊢N                =  yes (⊢μ ⊢N)
@@ -1011,6 +1103,7 @@ First, we give code to erase a type:
 ∥_∥Tp : Type → DB.Type
 ∥ `ℕ ∥Tp             =  DB.`ℕ
 ∥ A ⇒ B ∥Tp          =  ∥ A ∥Tp DB.⇒ ∥ B ∥Tp
+∥ A `× B ∥Tp          =  ∥ A ∥Tp DB.`× ∥ B ∥Tp
 ```
 It simply renames to the corresponding constructors in module `DB`.
 
@@ -1040,6 +1133,8 @@ there are two mutually recursive erasure functions:
 ∥ ⊢` ⊢x ∥⁺           =  DB.` ∥ ⊢x ∥∋
 ∥ ⊢L · ⊢M ∥⁺         =  ∥ ⊢L ∥⁺ DB.· ∥ ⊢M ∥⁻
 ∥ ⊢↓ ⊢M ∥⁺           =  ∥ ⊢M ∥⁻
+∥ ⊢proj₁ ⊢M ∥⁺       =  DB.`proj₁ ∥ ⊢M ∥⁺
+∥ ⊢proj₂ ⊢M ∥⁺       =  DB.`proj₂ ∥ ⊢M ∥⁺
 
 ∥ ⊢ƛ ⊢N ∥⁻           =  DB.ƛ ∥ ⊢N ∥⁻
 ∥ ⊢zero ∥⁻           =  DB.`zero
@@ -1047,6 +1142,7 @@ there are two mutually recursive erasure functions:
 ∥ ⊢case ⊢L ⊢M ⊢N ∥⁻  =  DB.case ∥ ⊢L ∥⁺ ∥ ⊢M ∥⁻ ∥ ⊢N ∥⁻
 ∥ ⊢μ ⊢M ∥⁻           =  DB.μ ∥ ⊢M ∥⁻
 ∥ ⊢↑ ⊢M refl ∥⁻      =  ∥ ⊢M ∥⁺
+∥ ⊢⟨,⟩ ⊢M ⊢N ∥⁻      =  DB.`⟨_,_⟩ ∥ ⊢M ∥⁻ ∥ ⊢N ∥⁻
 ```
 Erasure replaces constructors for each typing judgment
 by the corresponding term constructor from `DB`.  The
