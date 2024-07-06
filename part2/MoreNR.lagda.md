@@ -4,7 +4,7 @@ permalink : /More/
 ---
 
 ```agda
-module cs.plfa.part2.More where
+module cs.plfa.part2.MoreNR where
 ```
 
 So far, we have focussed on a relatively minimal language, based on
