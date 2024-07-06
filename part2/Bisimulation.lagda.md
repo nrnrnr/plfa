@@ -4,7 +4,7 @@ permalink : /Bisimulation/
 ---
 
 ```agda
-module plfa.part2.Bisimulation where
+module cs.plfa.part2.Bisimulation where
 ```
 
 Some constructs can be defined in terms of other constructs.  In the
@@ -130,7 +130,7 @@ are in bisimulation.
 We import our source language from
 Chapter [More](/More/):
 ```agda
-open import plfa.part2.More
+open import cs.plfa.part2.More
 ```
 
 
@@ -182,6 +182,28 @@ to use a decidable predicate to pick out terms in the domain of `_†`, using
 [proof by reflection](/Decidable/#proof-by-reflection).
 
 ```agda
+data Core : ∀  {Γ : Context} {A :  Type} -> Γ ⊢ A -> Set where
+  c-` : ∀ {Γ A} {x : Γ ∋ A} -> Core (` x)
+  c-· : ∀ {Γ A B} {M : Γ ⊢ A ⇒ B} {M' : Γ ⊢ A} -> Core M -> Core M' -> Core (M · M')
+  c-ƛ :  ∀ {Γ A B} {N : Γ , A ⊢ B} -> Core N -> Core (ƛ N)
+  c-let : ∀ {Γ A B} {M : Γ ⊢ A} {N : Γ , A ⊢ B} -> Core M -> Core N -> Core (`let M N)
+
+† : ∀ {Γ A} -> (M : Γ ⊢ A) {core : Core M} -> Γ ⊢ A 
+† (` x) = ` x
+† (ƛ M) {c-ƛ core} = ƛ († M {core})
+† (L · M) {c-· core-L core-M} = († L {core-L}) · († M {core-M})
+† (`let M N) {c-let core-M core-N} = (ƛ † N {core-N}) · († M {core-M})
+
+
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; refl)
+
+dagger-to : ∀ {Γ A} {N : Γ ⊢ A} -> (M : Γ ⊢ A) -> {core : Core M} -> † M {core} ≡ N -> M ~ N
+dagger-to (` x) refl = ~`
+dagger-to (ƛ M) {c-ƛ core} refl = ~ƛ (dagger-to M refl)
+dagger-to (M · M₁) {c-· core core₁} refl = dagger-to M refl ~· dagger-to M₁ refl
+dagger-to (`let M N) {c-let core core₁} refl = ~let (dagger-to M refl) (dagger-to N refl)
+
 -- Your code goes here
 ```
 
